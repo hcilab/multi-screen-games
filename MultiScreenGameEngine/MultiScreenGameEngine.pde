@@ -7,12 +7,16 @@
 
 import java.util.ArrayList;
 import java.util.Map;
+import processing.net.*;
 
 int lastFrameTime;
 
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IGameObjectManager gameObjectManager;
+Server myServer;
+Client myClient;
+
 JSONArray jsonGameWorld;
 int k = 0;
 
@@ -27,7 +31,9 @@ void setup()
   
   gameObjectManager = new GameObjectManager();
   gameObjectManager.fromXML("levels/sample_level.xml");
-  jsonGameWorld = gameObjectManager.serialize();
+  
+  myServer = new Server(this, 5204);
+  myClient = new Client(this, "127.0.0.1", 5204);
   
   lastFrameTime = millis();
 }
@@ -55,11 +61,19 @@ void draw()
   {
     gameObjectManager.update(deltaTime);
     jsonGameWorld = gameObjectManager.serialize();
+    myServer.write(jsonGameWorld.toString());
     k++;
   }
   else
   {
-    gameObjectManager.deserialize(jsonGameWorld);
+    if (myClient.available() > 0)
+    {
+      jsonGameWorld = JSONArray.parse(myClient.readString());
+      if (jsonGameWorld != null)
+      {
+        gameObjectManager.deserialize(jsonGameWorld);
+      }
+    }
     gameObjectManager.update(deltaTime);
     k = 0;
   }
