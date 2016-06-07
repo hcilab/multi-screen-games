@@ -14,6 +14,8 @@ int lastFrameTime;
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IGameObjectManager gameObjectManager;
+IScene scene;
+
 Server myServer;
 Client myClient;
 

@@ -1,5 +1,7 @@
 <GameObject>
-	<Render objFileName="box/box.obj"/>
+	<Render>
+		<Model name="box" objFileName="box/box.obj"/>
+	</Render>
 	
 	<TranslateOverTime
 		movingLeft="true"

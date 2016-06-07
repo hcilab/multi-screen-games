@@ -109,141 +109,94 @@ public abstract class Component implements IComponent
 
 public class RenderComponent extends Component
 {
-  private class PShapeExt
-  {
-    PShape pshape;
-    ArrayList<PVector> uvs;
-  }
-  
-  private ArrayList<PShapeExt> model;
-  private IMaterial material;
+  ArrayList<ISprite> sprites;
+  ArrayList<IModel> models;
   
   public RenderComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
-    model = new ArrayList<PShapeExt>();
-    material = new Material();
+    sprites = new ArrayList<ISprite>();
+    models = new ArrayList<IModel>();
+  }
+  
+  @Override public void destroy()
+  {
+    for (ISprite sprite : sprites)
+    {
+      scene.removeSprite(sprite.getName());
+    }
+    for (IModel model : models)
+    {
+      scene.removeModel(model.getName());
+    }
+    
+    sprites.clear();
+    models.clear();
   }
   
   @Override public void fromXML(XML xmlComponent)
   {
-    ArrayList<PVector> vertices = new ArrayList<PVector>();
-    ArrayList<PVector> uvs = new ArrayList<PVector>();
-    IMaterialLib materialLib = null;
-    
-    // These are dummy inserts so we don't need to subtract all the indices in the .obj file by one.
-    vertices.add(new PVector());
-    uvs.add(new PVector());
-    
-    for (String line : loadStrings(xmlComponent.getString("objFileName")))
+    for (XML xmlSubComponent : xmlComponent.getChildren())
     {
-      String[] words = line.split(" ");
-      
-      switch(words[0])
+      if (xmlSubComponent.getName().equals("Sprite"))
       {
-        case "mtllib":
-          materialLib = materialLibManager.getMaterialLib(words[1]);
-          break;
-          
-        case "v":
-          vertices.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2]), Float.parseFloat(words[3])));
-          break;
-          
-        case "vt":
-          uvs.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2])));
-          break;
-          
-        case "usemtl":
-          if (materialLib != null)
-          {
-            material = materialLib.getMaterial(words[1]);
-          }
-          break;
-          
-        case "f":
-          PShapeExt face = new PShapeExt();
-          face.uvs = new ArrayList<PVector>();
-          
-          face.pshape = createShape();
-          face.pshape.beginShape();
-          face.pshape.noStroke();
-          for (int i = 1; i < words.length; i++)
-          {
-            String[] vertexComponentsIndices = words[i].split("/");
-            
-            int vertexIndex = Integer.parseInt(vertexComponentsIndices[0]);
-            int uvIndex = Integer.parseInt(vertexComponentsIndices[1]);
-            
-            face.pshape.vertex(vertices.get(vertexIndex).x, vertices.get(vertexIndex).y, vertices.get(vertexIndex).z, uvs.get(uvIndex).x, uvs.get(uvIndex).y);
-            face.uvs.add(new PVector(uvs.get(uvIndex).x, uvs.get(uvIndex).y));
-          }
-          face.pshape.texture(material.getTexture());
-          face.pshape.endShape();
-          model.add(face);
-          break;
+        ISprite sprite = new Sprite(xmlSubComponent.getString("name"));
+        scene.addSprite(sprite);
+        sprites.add(sprite);
+      }
+      else if (xmlSubComponent.getName().equals("Model"))
+      {
+        IModel model = new Model(xmlSubComponent.getString("name"));
+        model.fromOBJ(xmlSubComponent.getString("objFileName"));
+        scene.addModel(model);
+        models.add(model);
       }
     }
   }
   
   @Override public JSONObject serialize()
   {
-    JSONObject jsonRenderComponent = new JSONObject();
+    JSONArray jsonSprites = new JSONArray();
+    JSONArray jsonModels = new JSONArray();
     
-    JSONArray jsonModel = new JSONArray();
-    for (PShapeExt face : model)
+    for (ISprite sprite : sprites)
     {
-      JSONArray jsonFace = new JSONArray();
-      for (int i = 0; i < face.pshape.getVertexCount(); i++)
-      {
-        PVector vertex = face.pshape.getVertex(i);
-        JSONObject jsonVertex = new JSONObject();
-        jsonVertex.setFloat("x", vertex.x);
-        jsonVertex.setFloat("y", vertex.y);
-        jsonVertex.setFloat("z", vertex.z);
-        jsonVertex.setFloat("u", face.uvs.get(i).x);
-        jsonVertex.setFloat("v", face.uvs.get(i).y);
-        jsonFace.append(jsonVertex);
-      }
-      jsonModel.append(jsonFace);
+      jsonSprites.append(sprite.serialize());
     }
-    jsonRenderComponent.setJSONArray("model", jsonModel);
     
-    jsonRenderComponent.setJSONObject("material", material.serialize());
+    for (IModel model : models)
+    {
+      jsonModels.append(model.serialize());
+    }
+    
+    JSONObject jsonRenderComponent = new JSONObject();
+    jsonRenderComponent.setJSONArray("sprites", jsonSprites);
+    jsonRenderComponent.setJSONArray("models", jsonModels);
     
     return jsonRenderComponent;
   }
   
   @Override public void deserialize(JSONObject jsonRenderComponent)
   {
-    material.deserialize(jsonRenderComponent.getJSONObject("material"));
+    sprites.clear();
+    models.clear();
     
-    JSONArray jsonModel = jsonRenderComponent.getJSONArray("model");
-    for (int i = 0; i < jsonModel.size(); i++)
+    JSONArray jsonSprites = jsonRenderComponent.getJSONArray("sprites");
+    JSONArray jsonModels = jsonRenderComponent.getJSONArray("models");
+    
+    for (int i = 0; i < jsonSprites.size(); i++)
     {
-      PShapeExt face = new PShapeExt();
-      face.uvs = new ArrayList<PVector>();
-      
-      face.pshape = createShape();
-      face.pshape.beginShape();
-      face.pshape.noStroke();
-      
-      JSONArray jsonFace = jsonModel.getJSONArray(i);
-      for (int j = 0; j < jsonFace.size(); j++)
-      {
-        PVector uv = new PVector();
-        
-        JSONObject jsonVertex = jsonFace.getJSONObject(j);
-        uv.x = jsonVertex.getFloat("u");
-        uv.y = jsonVertex.getFloat("v");
-        face.pshape.vertex(jsonVertex.getFloat("x"), jsonVertex.getFloat("y"), jsonVertex.getFloat("z"), uv.x, uv.y);
-        face.uvs.add(uv);
-      }
-      
-      face.pshape.texture(material.getTexture());
-      face.pshape.endShape();
-      
-      model.add(face);
+      ISprite sprite = new Sprite(jsonSprites.getJSONObject(i));
+      scene.addSprite(sprite);
+      sprites.add(sprite);
+    }
+    
+    for (int i = 0; i < jsonModels.size(); i++)
+    {
+      IModel model = new Model(jsonModels.getJSONObject(i));
+      scene.addModel(model);
+      models.add(model);
     }
   }
   
@@ -254,20 +207,19 @@ public class RenderComponent extends Component
   
   @Override public void update(int deltaTime)
   {
-    pushMatrix();
-    
-    translate(gameObject.getTranslation().x, gameObject.getTranslation().y, gameObject.getTranslation().z);
-    rotateX(gameObject.getRotation().x);
-    rotateY(gameObject.getRotation().y);
-    rotateZ(gameObject.getRotation().z);
-    scale(gameObject.getScale().x, gameObject.getScale().y, gameObject.getScale().z);
-    
-    for (PShapeExt face : model)
+    for (ISprite sprite : sprites)
     {
-      shape(face.pshape);
+      sprite.setTranslation(gameObject.getTranslation());
+      sprite.setRotation(gameObject.getRotation().z);
+      sprite.setScale(gameObject.getScale());
     }
     
-    popMatrix();
+    for (IModel model : models)
+    {
+      model.setTranslation(gameObject.getTranslation());
+      model.setRotation(gameObject.getRotation());
+      model.setScale(gameObject.getScale());
+    }
   }
 }
 
