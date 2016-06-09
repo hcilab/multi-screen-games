@@ -107,7 +107,7 @@ public interface IScene
   public void removeSprite(String name);
   
   public void addModel(IModel model);
-  public ISprite getModel(String name);
+  public IModel getModel(String name);
   public void removeModel(String name);
   
   public void render();
@@ -160,8 +160,8 @@ public abstract class Camera implements ICamera
   
   @Override public void setToDefaults()
   {
-    position = new PVector(width / 2.0f, height / 2.0f, (height / 2.0f) / tan(PI * 30.0f / 180.0f));
-    target = new PVector(width / 2.0f, height / 2.0f, 0.0f);
+    position = new PVector(0.0f, 0.0f, 10.0f);
+    target = new PVector(0.0f, 0.0f, 0.0f);
     up = new PVector(0.0f, 1.0f, 0.0f);
   }
   
@@ -272,10 +272,9 @@ public class PerspectiveCamera extends Camera implements IPerspectiveCamera
     super.setToDefaults();
     
     fieldOfView = PI / 3.0f;
-    aspectRatio = width / height;
-    float cameraZ = ((height / 2.0f) / tan(PI * 60.0f / 360.0f));
-    near = cameraZ / 10.0f;
-    far = cameraZ * 10.0f;
+    aspectRatio = 4.0f / 3.0f;
+    near = 0.01f;
+    far = 1000.0f;
   }
   
   @Override public void apply()
@@ -681,10 +680,10 @@ public class Model implements IModel
   {
     name = jsonModel.getString("name");
     
-    material.deserialize(jsonModel.getJSONObject("material"));
+    material = new Material(jsonModel.getJSONObject("material"));
     
-    faces.clear();
-    JSONArray jsonFaces = jsonModel.getJSONArray("model");
+    faces = new ArrayList<PShapeExt>();
+    JSONArray jsonFaces = jsonModel.getJSONArray("faces");
     for (int i = 0; i < jsonFaces.size(); i++)
     {
       PShapeExt face = new PShapeExt();
@@ -717,51 +716,83 @@ public class Model implements IModel
 
 public class Scene implements IScene
 {
+  private IOrthographicCamera orthographicCamera;
+  private IPerspectiveCamera perspectiveCamera;
+  private HashMap<String, ISprite> sprites;
+  private HashMap<String, IModel> models;
+  
   public Scene()
   {
+    orthographicCamera = new OrthographicCamera();
+    perspectiveCamera = new PerspectiveCamera();
+    sprites = new HashMap<String, ISprite>();
+    models = new HashMap<String, IModel>();
   }
   
-  public IOrthographicCamera getOrthographicCamera()
+  @Override public IOrthographicCamera getOrthographicCamera()
   {
+    return orthographicCamera;
   }
   
-  public void setOrthographicCamera(IOrthographicCamera orthographicCamera)
+  @Override public void setOrthographicCamera(IOrthographicCamera _orthographicCamera)
   {
+    orthographicCamera = _orthographicCamera;
   }
   
-  public IPerspectiveCamera getPerspectiveCamera()
+  @Override public IPerspectiveCamera getPerspectiveCamera()
   {
+    return perspectiveCamera;
   }
   
-  public void setPerspectiveCamera(IPerspectiveCamera perspectiveCamera)
+  @Override public void setPerspectiveCamera(IPerspectiveCamera _perspectiveCamera)
   {
+    perspectiveCamera = _perspectiveCamera;
   }
   
-  public void addSprite(ISprite sprite)
+  @Override public void addSprite(ISprite sprite)
   {
+    sprites.put(sprite.getName(), sprite);
   }
   
-  public ISprite getSprite(String name)
+  @Override public ISprite getSprite(String name)
   {
+    return sprites.get(name);
   }
   
-  public void removeSprite(String name)
+  @Override public void removeSprite(String name)
   {
+    sprites.remove(name);
   }
   
-  public void addModel(IModel model)
+  @Override public void addModel(IModel model)
   {
+    models.put(model.getName(), model);
   }
   
-  public ISprite getModel(String name)
+  @Override public IModel getModel(String name)
   {
+    return models.get(name);
   }
   
-  public void removeModel(String name)
+  @Override public void removeModel(String name)
   {
+    models.remove(name);
   }
   
-  public void render()
+  @Override public void render()
   {
+    orthographicCamera.apply();
+    
+    for (Map.Entry entry : sprites.entrySet())
+    {
+      ((ISprite)entry.getValue()).render();
+    }
+    
+    perspectiveCamera.apply();
+    
+    for (Map.Entry entry : models.entrySet())
+    {
+      ((IModel)entry.getValue()).render();
+    }
   }
 }

@@ -353,18 +353,18 @@ public class TranslateOverTimeComponent extends Component
     
     if (movingForward)
     {
-      translation.z = zUnitsPerMillisecond;
+      translation.z = -zUnitsPerMillisecond;
       
-      if (gameObject.getTranslation().z > forwardLimit)
+      if (gameObject.getTranslation().z < forwardLimit)
       {
         movingForward = false;
       }
     }
     else
     {
-      translation.z = -zUnitsPerMillisecond;
+      translation.z = zUnitsPerMillisecond;
       
-      if (gameObject.getTranslation().z < backwardLimit)
+      if (gameObject.getTranslation().z > backwardLimit)
       {
         movingForward = true;
       }

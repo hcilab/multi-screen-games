@@ -5,19 +5,19 @@
 	
 	<TranslateOverTime
 		movingLeft="true"
-		xUnitsPerSecond="60.0"
-		leftLimit="150.0"
-		rightLimit="650.0"
+		xUnitsPerSecond="18.0"
+		leftLimit="-100.0"
+		rightLimit="100.0"
 		
 		movingDown="true"
-		yUnitsPerSecond="48.0"
-		lowerLimit="550.0"
-		upperLimit="50.0"
+		yUnitsPerSecond="12.0"
+		lowerLimit="-100.0"
+		upperLimit="100.0"
 		
 		movingForward="false"
-		zUnitsPerSecond="90.0"
-		forwardLimit="100.0"
-		backwardLimit="-300.0"
+		zUnitsPerSecond="15.0"
+		forwardLimit="-200.0"
+		backwardLimit="-100.0"
 	/>
 	
 	<RotateOverTime 
@@ -28,18 +28,18 @@
 	
 	<ScaleOverTime
 		xScalingUp="true"
-		xScalePerSecond="4.0"
-		xLowerLimit="50.0"
-		xUpperLimit="150.0"
+		xScalePerSecond="0.8"
+		xLowerLimit="10.0"
+		xUpperLimit="20.0"
 		
 		yScalingUp="false"
-		yScalePerSecond="1.0"
-		yLowerLimit="50.0"
-		yUpperLimit="150.0"
+		yScalePerSecond="0.2"
+		yLowerLimit="10.0"
+		yUpperLimit="20.0"
 		
 		zScalingUp="false"
-		zScalePerSecond="8.0"
-		zLowerLimit="50.0"
-		zUpperLimit="150.0"
+		zScalePerSecond="0.4"
+		zLowerLimit="10.0"
+		zUpperLimit="20.0"
 	/>
 </GameObject>

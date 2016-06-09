@@ -60,6 +60,11 @@ public class Material implements IMaterial
     specularReflect = new PVector();
   }
   
+  public Material(JSONObject jsonMaterial)
+  {
+    deserialize(jsonMaterial);
+  }
+  
   // Returns the line index this method stopped parsing (the end of the material).
   @Override public int fromMTL(String[] mtlFile, int lineIndex)
   {
@@ -148,21 +153,15 @@ public class Material implements IMaterial
   @Override public void deserialize(JSONObject jsonMaterial)
   {
     name = jsonMaterial.getString("name");
-    
+        
     JSONObject jsonAmbientReflect = jsonMaterial.getJSONObject("ambientReflect");
-    ambientReflect.x = jsonAmbientReflect.getFloat("r");
-    ambientReflect.y = jsonAmbientReflect.getFloat("g");
-    ambientReflect.z = jsonAmbientReflect.getFloat("b");
+    ambientReflect = new PVector(jsonAmbientReflect.getFloat("r"), jsonAmbientReflect.getFloat("g"), jsonAmbientReflect.getFloat("b"));
     
     JSONObject jsonDiffuseReflect = jsonMaterial.getJSONObject("diffuseReflect");
-    diffuseReflect.x = jsonDiffuseReflect.getFloat("r");
-    diffuseReflect.y = jsonDiffuseReflect.getFloat("g");
-    diffuseReflect.z = jsonDiffuseReflect.getFloat("b");
+    diffuseReflect = new PVector(jsonDiffuseReflect.getFloat("r"), jsonDiffuseReflect.getFloat("g"), jsonDiffuseReflect.getFloat("b"));
     
     JSONObject jsonSpecularReflect = jsonMaterial.getJSONObject("specularReflect");
-    specularReflect.x = jsonSpecularReflect.getFloat("r");
-    specularReflect.y = jsonSpecularReflect.getFloat("g");
-    specularReflect.z = jsonSpecularReflect.getFloat("b");
+    specularReflect = new PVector(jsonSpecularReflect.getFloat("r"), jsonSpecularReflect.getFloat("g"), jsonSpecularReflect.getFloat("b"));
     
     specularExponent = jsonMaterial.getFloat("specularExponent");
     

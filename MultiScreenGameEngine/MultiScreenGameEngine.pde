@@ -13,8 +13,8 @@ int lastFrameTime;
 
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
-IGameObjectManager gameObjectManager;
 IScene scene;
+IGameObjectManager gameObjectManager;
 
 Server myServer;
 Client myClient;
@@ -24,12 +24,15 @@ int k = 0;
 
 void setup()
 {
-  size(800, 600, P3D);
-  surface.setResizable(true);
+  //size(800, 600, P3D);
+  //surface.setResizable(true);
+  fullScreen(P3D);
   
   textureManager = new TextureManager();
   
-  materialLibManager = new MaterialLibManager();
+  materialLibManager = new MaterialLibManager(); 
+  
+  scene = new Scene();
   
   gameObjectManager = new GameObjectManager();
   gameObjectManager.fromXML("levels/sample_level.xml");
@@ -52,14 +55,14 @@ void draw()
   {
     deltaTime = 32;
   }
-  println(deltaTime);
+  //println(deltaTime);
   
-  if (k < 20)
+  if (k < 1)
   {
     gameObjectManager.update(deltaTime);
     k++;
   }
-  else if (k == 20)
+  else if (k == 1)
   {
     gameObjectManager.update(deltaTime);
     jsonGameWorld = gameObjectManager.serialize();
@@ -79,4 +82,14 @@ void draw()
     gameObjectManager.update(deltaTime);
     k = 0;
   }
+  
+  scene.render();
+}
+
+int xOffset = 0;
+
+void mouseMoved()
+{
+  xOffset = mouseX - pmouseX;
+  //println(xOffset);
 }
