@@ -106,7 +106,7 @@ public class GameState_ClientState extends GameState
   {
     sharedGameObjectManager.fromXML("levels/sample_level.xml");
     
-    myClient = new Client(mainObject, "127.0.0.1", 5204);
+    myClient = new Client(mainObject, "131.202.105.30", 5204);
     println("Client started.");
     
     jsonGameWorld = null;
