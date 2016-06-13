@@ -94,6 +94,7 @@ public class GameState_ClientState extends GameState
 {
   private Client myClient;
   private JSONArray jsonGameWorld;
+  private int waitCount;
   private boolean cursorVisible;
   private Robot robot;
   
@@ -110,6 +111,7 @@ public class GameState_ClientState extends GameState
     println("Client started.");
     
     jsonGameWorld = null;
+    waitCount = 0;
     cursorVisible = true;
     
     try
@@ -148,7 +150,7 @@ public class GameState_ClientState extends GameState
       }
       sharedGameObjectManager.update(deltaTime);
     }
-    else
+    else if (waitCount > 20)
     {
       sharedGameObjectManager.update(deltaTime);
       jsonGameWorld = sharedGameObjectManager.serialize();
@@ -156,6 +158,12 @@ public class GameState_ClientState extends GameState
       {
         myClient.write(jsonGameWorld.toString());
       }
+      waitCount = 0;
+    }
+    else
+    {
+      sharedGameObjectManager.update(deltaTime);
+      waitCount++;
     }
     
     //if (robot != null)
