@@ -95,7 +95,6 @@ public class GameState_ClientState extends GameState
   private Client myClient;
   private boolean receivedServerString;
   private String serverString;
-  private ArrayList<IAction> actionBuffer;
   
   public GameState_ClientState()
   {
@@ -111,19 +110,12 @@ public class GameState_ClientState extends GameState
     
     receivedServerString = false;
     serverString = "";
-    
-    actionBuffer = new ArrayList<IAction>();
   }
   
   @Override public void update(int deltaTime)
   {
     if (myClient.active())
     {
-      for (IEvent event : eventManager.getEvents(EventType.ACTION))
-      {
-        actionBuffer.add(event.getRequiredActionParameter("action"));
-      }
-      
       if (myClient.available() > 0)
       {
         serverString += myClient.readString();
@@ -140,14 +132,6 @@ public class GameState_ClientState extends GameState
           serverString = "";
           receivedServerString = true;
         }
-        else
-        {
-          receivedServerString = false;
-        }
-      }
-      else
-      {
-        receivedServerString = false;
       }
     }
     

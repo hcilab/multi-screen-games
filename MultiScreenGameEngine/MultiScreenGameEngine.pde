@@ -15,6 +15,7 @@ import processing.net.Server;
 
 MultiScreenGameEngine mainObject;
 IEventManager eventManager;
+ArrayList<IAction> actionBuffer;
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IScene scene;
