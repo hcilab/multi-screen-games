@@ -93,7 +93,6 @@ public class GameState_ChooseClientServerState extends GameState
 public class GameState_ClientState extends GameState
 {
   private Client myClient;
-  private boolean receivedServerString;
   private String serverString;
   
   public GameState_ClientState()
@@ -108,7 +107,6 @@ public class GameState_ClientState extends GameState
     myClient = new Client(mainObject, "131.202.105.28", 5204);
     println("Client started.");
     
-    receivedServerString = false;
     serverString = "";
   }
   
@@ -130,7 +128,6 @@ public class GameState_ClientState extends GameState
             action.apply();
           }
           serverString = "";
-          receivedServerString = true;
         }
       }
     }
@@ -138,7 +135,7 @@ public class GameState_ClientState extends GameState
     sharedGameObjectManager.update(deltaTime);
     scene.render();
     
-    if (!receivedServerString && myClient.active())
+    if (myClient.active())
     {
       JSONArray jsonActions = new JSONArray();
       for (IAction action : actionBuffer)
