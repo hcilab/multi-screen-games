@@ -152,6 +152,7 @@ public class GameState_ClientState extends GameState
   
   @Override public void onExit()
   {
+    myClient.stop();
   }
 }
 
@@ -215,6 +216,7 @@ public class GameState_ServerState extends GameState
   
   @Override public void onExit()
   {
+    myServer.stop();
   }
 }
 
