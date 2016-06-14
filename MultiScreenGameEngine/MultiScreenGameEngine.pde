@@ -30,6 +30,7 @@ void setup()
   
   mainObject = this;
   eventManager = new EventManager();
+  actionBuffer = new ArrayList<IAction>();
   textureManager = new TextureManager();
   materialLibManager = new MaterialLibManager(); 
   scene = new Scene();
@@ -51,7 +52,7 @@ void draw()
   {
     deltaTime = 32;
   }
-  println(deltaTime);
+  //println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
   //if (robot != null)
