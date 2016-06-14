@@ -74,11 +74,11 @@ public class GameState_ChooseClientServerState extends GameState
   {
     if (keyPressed)
     {
-      if (key == 's' || key == 'S')
+      if (key == 's')
       {
         gameStateController.pushState(new GameState_ServerState());
       }
-      else if (key == 'c' || key == 'C')
+      else if (key == 'c')
       {
         gameStateController.pushState(new GameState_ClientState());
       }
@@ -93,10 +93,8 @@ public class GameState_ChooseClientServerState extends GameState
 public class GameState_ClientState extends GameState
 {
   private Client myClient;
-  private JSONArray jsonGameWorld;
-  private int waitCount;
-  private boolean cursorVisible;
-  private Robot robot;
+  private String serverString;
+  private ArrayList<IAction> actionBuffer;
   
   public GameState_ClientState()
   {
@@ -110,83 +108,54 @@ public class GameState_ClientState extends GameState
     myClient = new Client(mainObject, "127.0.0.1", 5204);
     println("Client started.");
     
-    jsonGameWorld = null;
-    waitCount = 0;
-    cursorVisible = true;
+    serverString = "";
     
-    try
-    {
-      robot = new Robot();
-    }
-    catch (AWTException e) 
-    {
-      println(e);
-      robot = null;
-    }
+    actionBuffer = new ArrayList<IAction>();
   }
   
   @Override public void update(int deltaTime)
   {
-    if (myClient.active() && myClient.available() > 0)
+    if (myClient.active())
     {
-      String jsonGameWorldString = new String();
-      while (myClient.available() > 0)
+      for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
       {
-        jsonGameWorldString += myClient.readString();
+        actionBuffer.add(event.getRequiredActionParameter("action"));
       }
-      try
+      
+      if (myClient.available() > 0)
       {
-        jsonGameWorld = JSONArray.parse(jsonGameWorldString);
+        serverString += myClient.readString();
+        JSONArray jsonGameWorld = JSONArray.parse(serverString);
         if (jsonGameWorld != null)
         {
           IGameObjectManager attempt = new GameObjectManager();
           attempt.deserialize(jsonGameWorld);
           sharedGameObjectManager = attempt;
+          for (IAction action : actionBuffer)
+          {
+            action.apply();
+          }
+          serverString = "";
         }
       }
-      catch (Exception e)
-      {
-        println("caught");
-      }
-      sharedGameObjectManager.update(deltaTime);
-    }
-    else if (waitCount > 20)
-    {
-      sharedGameObjectManager.update(deltaTime);
-      jsonGameWorld = sharedGameObjectManager.serialize();
-      if (myClient.active())
-      {
-        myClient.write(jsonGameWorld.toString());
-      }
-      waitCount = 0;
-    }
-    else
-    {
-      sharedGameObjectManager.update(deltaTime);
-      waitCount++;
     }
     
-    //if (robot != null)
-    //{
-    //  if (focused)
-    //  {
-    //    if (cursorVisible)
-    //    {
-    //      noCursor();
-    //      cursorVisible = false;
-    //    }
-    //    robot.mouseMove(0, 0);
-    //  }
-    //  else
-    //  {
-    //    if (!cursorVisible)
-    //    {
-    //      cursor(ARROW);
-    //      cursorVisible = true;
-    //    }
-    //  }
-    //}
-    //println(MouseInfo.getPointerInfo().getLocation());
+    sharedGameObjectManager.update(deltaTime);
+    scene.render();
+    
+    if (myClient.active())
+    {
+      JSONArray jsonActions = new JSONArray();
+      for (IAction action : actionBuffer)
+      {
+        jsonActions.append(action.serialize());
+      }
+      println("===================================================");
+      println("CLIENT");
+      println(jsonActions.toString());
+      myClient.write(jsonActions.toString());
+      actionBuffer.clear();
+    }
   }
   
   @Override public void onExit()
@@ -197,23 +166,26 @@ public class GameState_ClientState extends GameState
 public class GameState_ServerState extends GameState
 {
   private Server myServer;
+  private String clientString;
+  private int timePassed;
+  private final int TIME_TO_SEND;
   
   public GameState_ServerState()
   {
     super();
+    
+    TIME_TO_SEND = 100;
   }
   
   @Override public void onEnter()
   {
-    try
-    {
-      myServer = new Server(mainObject, 5204);
-      println("Server started.");
-    }
-    catch (Exception e)
-    {
-      println(e);
-    }
+    sharedGameObjectManager.fromXML("levels/sample_level.xml");
+    
+    myServer = new Server(mainObject, 5204);
+    println("Server started.");
+    
+    clientString = "";
+    timePassed = 0;
   }
   
   @Override public void update(int deltaTime)
@@ -222,9 +194,30 @@ public class GameState_ServerState extends GameState
     
     if (client != null)
     {
-      String message = client.readString();
-      println("message: " + message);
-      myServer.write(message);
+      clientString += client.readString();
+      JSONArray jsonActionList = JSONArray.parse(clientString);
+      if (jsonActionList != null)
+      {
+        println("==================================");
+        println("SERVER");
+        println(clientString);
+        
+        for (int i = 0; i < jsonActionList.size(); i++)
+        {
+          IAction action = deserializeAction(jsonActionList.getJSONObject(i));
+          action.apply();
+        }
+        
+        clientString = "";
+      }
+    }
+    
+    timePassed += deltaTime;
+    if (timePassed > TIME_TO_SEND)
+    {
+      myServer.write(sharedGameObjectManager.serialize().toString());
+      
+      timePassed = 0;
     }
   }
   

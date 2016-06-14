@@ -334,22 +334,22 @@ public class TranslateOverTimeComponent extends Component
     
     if (movingDown)
     {
-      translation.y = yUnitsPerMillisecond;
+      translation.y = -yUnitsPerMillisecond;
       
-      if (gameObject.getTranslation().y > lowerLimit)
+      if (gameObject.getTranslation().y < lowerLimit)
       {
         movingDown = false;
       }
     }
     else
     {
-      translation.y = -yUnitsPerMillisecond;
+      translation.y = yUnitsPerMillisecond;
       
-      if (gameObject.getTranslation().y < upperLimit)
+      if (gameObject.getTranslation().y > upperLimit)
       {
         movingDown = true;
       }
-    }
+    }    
     
     if (movingForward)
     {
@@ -370,7 +370,15 @@ public class TranslateOverTimeComponent extends Component
       }
     }
     
-    gameObject.translate(translation.mult(deltaTime));
+    //gameObject.translate(translation.mult(deltaTime));
+    TranslateAction translateAction = new TranslateAction();
+    translateAction.setTarget(gameObject);
+    translateAction.setTranslation(translation.mult(deltaTime));
+    
+    IEvent event = new Event(EventType.APPLY_ACTION);
+    event.addActionParameter("action", translateAction);
+    
+    eventManager.queueEvent(event);
   }
 }
 
@@ -422,7 +430,14 @@ public class RotateOverTimeComponent extends Component
   
   @Override public void update(int deltaTime)
   {
-    gameObject.rotate(new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime));
+    RotateAction rotateAction = new RotateAction();
+    rotateAction.setTarget(gameObject);
+    rotateAction.setRotation(new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime));
+    
+    IEvent event = new Event(EventType.APPLY_ACTION);
+    event.addActionParameter("action", rotateAction);
+    
+    eventManager.queueEvent(event);
   }
 }
 
@@ -573,7 +588,14 @@ public class ScaleOverTimeComponent extends Component
       }
     }
     
-    gameObject.scale(scale.mult(deltaTime));
+    ScaleAction scaleAction = new ScaleAction();
+    scaleAction.setTarget(gameObject);
+    scaleAction.setScale(scale.mult(deltaTime));
+    
+    IEvent event = new Event(EventType.APPLY_ACTION);
+    event.addActionParameter("action", scaleAction);
+    
+    eventManager.queueEvent(event);
   }
 }
 

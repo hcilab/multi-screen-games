@@ -40,6 +40,7 @@ public class MultiScreenGameEngine extends PApplet {
 
 
 MultiScreenGameEngine mainObject;
+IEventManager eventManager;
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IScene scene;
@@ -53,6 +54,7 @@ public void setup()
   surface.setResizable(true);
   
   mainObject = this;
+  eventManager = new EventManager();
   textureManager = new TextureManager();
   materialLibManager = new MaterialLibManager(); 
   scene = new Scene();
@@ -74,12 +76,33 @@ public void draw()
   {
     deltaTime = 32;
   }
+  //println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
+  //if (robot != null)
+  //{
+  //  if (focused)
+  //  {
+  //    if (cursorVisible)
+  //    {
+  //      noCursor();
+  //      cursorVisible = false;
+  //    }
+  //    robot.mouseMove(0, 0);
+  //  }
+  //  else
+  //  {
+  //    if (!cursorVisible)
+  //    {
+  //      cursor(ARROW);
+  //      cursorVisible = true;
+  //    }
+  //  }
+  //}
+  //println(MouseInfo.getPointerInfo().getLocation());
   
   gameStateController.update(deltaTime);
-  
-  scene.render();
+  eventManager.update();
 }
 //======================================================================================================
 // Author: David Hanna
@@ -101,8 +124,13 @@ public enum ActionType
 public interface IAction
 {
   public int getTimeStamp();
+  public ActionType getActionType();
+  
+  public void apply();
+  public void undo();
   
   public JSONObject serialize();
+  public void deserialize(JSONObject jsonAction);
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -166,25 +194,211 @@ public abstract class Action implements IAction
 
 public class TranslateAction extends Action
 {
+  private IGameObject target;
+  private PVector translation;
+  
+  public TranslateAction()
+  {
+    super();
+    
+    target = null;
+    translation = new PVector();
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.TRANSLATE;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public IGameObject getTarget()
+  {
+    return target;
+  }
+  
+  public void setTranslation(PVector _translation)
+  {
+    translation = _translation;
+  }
+  
+  public PVector getTranslation()
+  {
+    return translation;
+  }
+  
+  @Override public void apply()
+  {
+    target.translate(translation);
+  }
+  
+  @Override public void undo()
+  {
+    target.translate(new PVector(-translation.x, -translation.y, -translation.z));
+  }
+  
   @Override public JSONObject serialize()
   {
-    return new JSONObject();
+    JSONObject jsonTranslateAction = new JSONObject();
+    
+    jsonTranslateAction.setString("ActionType", actionTypeEnumToString(ActionType.TRANSLATE));
+    jsonTranslateAction.setInt("uid", target.getUID());
+    jsonTranslateAction.setFloat("x", translation.x);
+    jsonTranslateAction.setFloat("y", translation.y);
+    jsonTranslateAction.setFloat("z", translation.z);
+    
+    return jsonTranslateAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonTranslateAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonTranslateAction.getInt("uid"));
+    translation.x = jsonTranslateAction.getFloat("x");
+    translation.y = jsonTranslateAction.getFloat("y");
+    translation.z = jsonTranslateAction.getFloat("z");
   }
 }
 
 public class RotateAction extends Action
 {
+  private IGameObject target;
+  private PVector rotation;
+  
+  public RotateAction()
+  {
+    super();
+    
+    target = null;
+    rotation = new PVector();
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.ROTATE;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public IGameObject getTarget()
+  {
+    return target;
+  }
+  
+  public void setRotation(PVector _rotation)
+  {
+    rotation = _rotation;
+  }
+  
+  public PVector getRotation()
+  {
+    return rotation;
+  }
+  
+  @Override public void apply()
+  {
+    target.rotate(rotation);
+  }
+  
+  @Override public void undo()
+  {
+    target.rotate(new PVector(-rotation.x, -rotation.y, -rotation.z));
+  }
+  
   @Override public JSONObject serialize()
   {
-    return new JSONObject();
+    JSONObject jsonRotateAction = new JSONObject();
+    
+    jsonRotateAction.setString("ActionType", actionTypeEnumToString(ActionType.ROTATE));
+    jsonRotateAction.setInt("uid", target.getUID());
+    jsonRotateAction.setFloat("x", rotation.x);
+    jsonRotateAction.setFloat("y", rotation.y);
+    jsonRotateAction.setFloat("z", rotation.z);
+    
+    return jsonRotateAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonRotateAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonRotateAction.getInt("uid"));
+    rotation.x = jsonRotateAction.getFloat("x");
+    rotation.y = jsonRotateAction.getFloat("y");
+    rotation.z = jsonRotateAction.getFloat("z");
   }
 }
 
 public class ScaleAction extends Action
 {
+  private IGameObject target;
+  private PVector scale;
+  
+  public ScaleAction()
+  {
+    super();
+    
+    target = null;
+    scale = new PVector();
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SCALE;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public IGameObject getTarget()
+  {
+    return target;
+  }
+  
+  public void setScale(PVector _scale)
+  {
+    scale = _scale;
+  }
+  
+  public PVector getScale()
+  {
+    return scale;
+  }
+  
+  @Override public void apply()
+  {
+    target.scale(scale);
+  }
+  
+  @Override public void undo()
+  {
+    target.scale(new PVector(-scale.x, -scale.y, -scale.z));
+  }
+  
   @Override public JSONObject serialize()
   {
-    return new JSONObject();
+    JSONObject jsonScaleAction = new JSONObject();
+    
+    jsonScaleAction.setString("ActionType", actionTypeEnumToString(ActionType.SCALE));
+    jsonScaleAction.setInt("uid", target.getUID());
+    jsonScaleAction.setFloat("x", scale.x);
+    jsonScaleAction.setFloat("y", scale.y);
+    jsonScaleAction.setFloat("z", scale.z);
+    
+    return jsonScaleAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonScaleAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonScaleAction.getInt("uid"));
+    scale.x = jsonScaleAction.getFloat("x");
+    scale.y = jsonScaleAction.getFloat("y");
+    scale.z = jsonScaleAction.getFloat("z");
   }
 }
 
@@ -211,6 +425,11 @@ public IAction deserializeAction(JSONObject jsonAction)
     default:
       println("Assertion: ActionType not added to deserializeAction.");
       assert(false);
+  }
+  
+  if (action != null)
+  {
+    action.deserialize(jsonAction);
   }
   
   return action;
@@ -551,22 +770,22 @@ public class TranslateOverTimeComponent extends Component
     
     if (movingDown)
     {
-      translation.y = yUnitsPerMillisecond;
+      translation.y = -yUnitsPerMillisecond;
       
-      if (gameObject.getTranslation().y > lowerLimit)
+      if (gameObject.getTranslation().y < lowerLimit)
       {
         movingDown = false;
       }
     }
     else
     {
-      translation.y = -yUnitsPerMillisecond;
+      translation.y = yUnitsPerMillisecond;
       
-      if (gameObject.getTranslation().y < upperLimit)
+      if (gameObject.getTranslation().y > upperLimit)
       {
         movingDown = true;
       }
-    }
+    }    
     
     if (movingForward)
     {
@@ -587,7 +806,15 @@ public class TranslateOverTimeComponent extends Component
       }
     }
     
-    gameObject.translate(translation.mult(deltaTime));
+    //gameObject.translate(translation.mult(deltaTime));
+    TranslateAction translateAction = new TranslateAction();
+    translateAction.setTarget(gameObject);
+    translateAction.setTranslation(translation.mult(deltaTime));
+    
+    IEvent event = new Event(EventType.APPLY_ACTION);
+    event.addActionParameter("action", translateAction);
+    
+    eventManager.queueEvent(event);
   }
 }
 
@@ -639,7 +866,14 @@ public class RotateOverTimeComponent extends Component
   
   @Override public void update(int deltaTime)
   {
-    gameObject.rotate(new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime));
+    RotateAction rotateAction = new RotateAction();
+    rotateAction.setTarget(gameObject);
+    rotateAction.setRotation(new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime));
+    
+    IEvent event = new Event(EventType.APPLY_ACTION);
+    event.addActionParameter("action", rotateAction);
+    
+    eventManager.queueEvent(event);
   }
 }
 
@@ -790,7 +1024,14 @@ public class ScaleOverTimeComponent extends Component
       }
     }
     
-    gameObject.scale(scale.mult(deltaTime));
+    ScaleAction scaleAction = new ScaleAction();
+    scaleAction.setTarget(gameObject);
+    scaleAction.setScale(scale.mult(deltaTime));
+    
+    IEvent event = new Event(EventType.APPLY_ACTION);
+    event.addActionParameter("action", scaleAction);
+    
+    eventManager.queueEvent(event);
   }
 }
 
@@ -875,8 +1116,9 @@ public IComponent deserializeComponent(GameObject gameObject, JSONObject jsonCom
 
 // The supported types of events. When adding a new event type, also add to the
 // EventManager constructor a new collection for the type. 
-enum EventType
+public enum EventType
 {
+  APPLY_ACTION
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -890,12 +1132,14 @@ public interface IEvent
   public void        addStringParameter(String name, String value);
   public void        addFloatParameter(String name, float value);
   public void        addIntParameter(String name, int value);
+  public void        addActionParameter(String name, IAction value);
   public void        addGameObjectParameter(String name, IGameObject value);
   
   // Use these to get a parameter, but it does not have to have been set by the sender. A default value is required.
   public String      getOptionalStringParameter(String name, String defaultValue);
   public float       getOptionalFloatParameter(String name, float defaultValue);
   public int         getOptionalIntParameter(String name, int defaultValue);
+  public IAction     getOptionalActionParameter(String name, IAction defaultValue);
   public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue);
   
   // Use these to get a parameter that must have been set by the sender. If the sender did not set it, this is an error
@@ -903,11 +1147,12 @@ public interface IEvent
   public String      getRequiredStringParameter(String name);
   public float       getRequiredFloatParameter(String name);
   public int         getRequiredIntParameter(String name);
+  public IAction     getRequiredActionParameter(String name);
   public IGameObject getRequiredGameObjectParameter(String name);
 }
 
 // The Event Manager keeps track of listeners and forwards events to them.
-interface IEventManager
+public interface IEventManager
 {
   // Use queueEvent to send out an event you have created to all listeners.
   // It will be received by listeners next frame.
@@ -925,13 +1170,14 @@ interface IEventManager
 // IMPLEMENTATION
 //-------------------------------------------------------------------------
 
-class Event implements IEvent
+public class Event implements IEvent
 {
   private EventType eventType;
   
   private HashMap<String, String> stringParameters;
   private HashMap<String, Float> floatParameters;
   private HashMap<String, Integer> intParameters;
+  private HashMap<String, IAction> actionParameters;
   private HashMap<String, IGameObject> gameObjectParameters;
   
   public Event(EventType _eventType)
@@ -940,6 +1186,7 @@ class Event implements IEvent
     stringParameters = new HashMap<String, String>();
     floatParameters = new HashMap<String, Float>();
     intParameters = new HashMap<String, Integer>();
+    actionParameters = new HashMap<String, IAction>();
     gameObjectParameters = new HashMap<String, IGameObject>();
   }
   
@@ -961,6 +1208,11 @@ class Event implements IEvent
   @Override public void addIntParameter(String name, int value)
   {
     intParameters.put(name, value);
+  }
+  
+  @Override public void addActionParameter(String name, IAction value)
+  {
+    actionParameters.put(name, value);
   }
   
   @Override public void addGameObjectParameter(String name, IGameObject value)
@@ -998,6 +1250,16 @@ class Event implements IEvent
     return defaultValue;
   }
   
+  @Override public IAction getOptionalActionParameter(String name, IAction defaultValue)
+  {
+    if (actionParameters.containsKey(name))
+    {
+      return actionParameters.get(name);
+    }
+    
+    return defaultValue;
+  }
+  
   @Override public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue)
   {
     if (gameObjectParameters.containsKey(name))
@@ -1026,6 +1288,12 @@ class Event implements IEvent
     return intParameters.get(name);
   }
   
+  @Override public IAction getRequiredActionParameter(String name)
+  {
+    assert(actionParameters.containsKey(name));
+    return actionParameters.get(name);
+  }
+  
   @Override public IGameObject getRequiredGameObjectParameter(String name)
   {
     assert(gameObjectParameters.containsKey(name));
@@ -1033,7 +1301,7 @@ class Event implements IEvent
   }
 }
 
-class EventManager implements IEventManager
+public class EventManager implements IEventManager
 {
   // queued events will be ready and received by listeners next frame. cleared each frame.
   private HashMap<EventType, ArrayList<IEvent>> queuedEvents;
@@ -1046,7 +1314,7 @@ class EventManager implements IEventManager
     queuedEvents = new HashMap<EventType, ArrayList<IEvent>>();
     readyEvents = new HashMap<EventType, ArrayList<IEvent>>();
     
-    //addEventTypeToMaps(EventType.UP_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.APPLY_ACTION);
   }
   
   private void addEventTypeToMaps(EventType eventType)
@@ -1109,6 +1377,9 @@ interface IGameObject
   // Every instantiated Game Object has a unique ID.
   public int getUID();
   
+  // Every GameObject has a back-reference to its manager.
+  public IGameObjectManager getGameObjectManager();
+  
   // A Game Object can have a tag which may be used for various purposes. e.g. if (getTag() == "player") { ... }
   public String getTag();
   public void setTag(String _tag);
@@ -1147,7 +1418,6 @@ interface IGameObjectManager
   
   public void update(int deltaTime);
   
-  public void                   addGameObject(IGameObject gameObject);
   public IGameObject            addGameObject(String fileName, PVector translation, PVector rotation, PVector scale);
   public IGameObject            getGameObject(int UID);
   public ArrayList<IGameObject> getGameObjectsByTag(String tag);
@@ -1162,9 +1432,10 @@ interface IGameObjectManager
 // Increments such that every GameObject has a unique ID.
 int gameObjectNextUID = 0;
 
-class GameObject implements IGameObject
+public class GameObject implements IGameObject
 {
   private int UID;
+  private IGameObjectManager owner;
   private String tag;
   
   private PVector translation;
@@ -1173,11 +1444,11 @@ class GameObject implements IGameObject
   
   private ArrayList<IComponent> components;
   
-  public GameObject(PVector _translation, PVector _rotation, PVector _scale)
+  public GameObject(IGameObjectManager _owner, PVector _translation, PVector _rotation, PVector _scale)
   {
     UID = gameObjectNextUID;
     gameObjectNextUID++;
-    
+    owner = _owner;
     tag = "";
     
     translation = _translation;
@@ -1187,8 +1458,10 @@ class GameObject implements IGameObject
     components = new ArrayList<IComponent>();
   }
   
-  public GameObject(JSONObject jsonGameObject)
+  public GameObject(IGameObjectManager _owner, JSONObject jsonGameObject)
   {
+    owner = _owner;
+    
     translation = new PVector();
     rotation = new PVector();
     scale = new PVector();
@@ -1294,6 +1567,11 @@ class GameObject implements IGameObject
     return UID;
   }
   
+  @Override public IGameObjectManager getGameObjectManager()
+  {
+    return owner;
+  }
+  
   @Override public String getTag()
   {
     return tag;
@@ -1375,7 +1653,7 @@ class GameObject implements IGameObject
   }
 }
 
-class GameObjectManager implements IGameObjectManager
+public class GameObjectManager implements IGameObjectManager
 {
   private HashMap<Integer, IGameObject> gameObjects;
   private ArrayList<IGameObject> addList;
@@ -1424,7 +1702,7 @@ class GameObjectManager implements IGameObjectManager
         }
       }
       
-      IGameObject gameObject = new GameObject(translation, rotation, scale);
+      IGameObject gameObject = new GameObject(this, translation, rotation, scale);
       String tag = xmlGameObject.getString("tag");
       if (tag != null)
       {
@@ -1455,13 +1733,18 @@ class GameObjectManager implements IGameObjectManager
     
     for (int i = 0; i < jsonGameWorld.size(); i++)
     {
-      IGameObject gameObject = new GameObject(jsonGameWorld.getJSONObject(i));
+      IGameObject gameObject = new GameObject(this, jsonGameWorld.getJSONObject(i));
       gameObjects.put(gameObject.getUID(), gameObject);
     }
   }
   
   @Override public void update(int deltaTime)
   {
+    for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
+    {
+      event.getRequiredActionParameter("action").apply();
+    }
+    
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
@@ -1485,14 +1768,9 @@ class GameObjectManager implements IGameObjectManager
     removeList.clear();
   }
   
-  @Override public void addGameObject(IGameObject gameObject)
-  {
-    addList.add(gameObject);
-  }
-  
   @Override public IGameObject addGameObject(String fileName, PVector translation, PVector rotation, PVector scale)
   {
-    IGameObject gameObject = new GameObject(translation, rotation, scale);
+    IGameObject gameObject = new GameObject(this, translation, rotation, scale);
     gameObject.fromXML(fileName);
     addList.add(gameObject);
     return gameObject;
@@ -1615,11 +1893,11 @@ public class GameState_ChooseClientServerState extends GameState
   {
     if (keyPressed)
     {
-      if (key == 's' || key == 'S')
+      if (key == 's')
       {
         gameStateController.pushState(new GameState_ServerState());
       }
-      else if (key == 'c' || key == 'C')
+      else if (key == 'c')
       {
         gameStateController.pushState(new GameState_ClientState());
       }
@@ -1634,9 +1912,8 @@ public class GameState_ChooseClientServerState extends GameState
 public class GameState_ClientState extends GameState
 {
   private Client myClient;
-  private JSONArray jsonGameWorld;
-  private boolean cursorVisible;
-  private Robot robot;
+  private String serverString;
+  private ArrayList<IAction> actionBuffer;
   
   public GameState_ClientState()
   {
@@ -1650,76 +1927,54 @@ public class GameState_ClientState extends GameState
     myClient = new Client(mainObject, "127.0.0.1", 5204);
     println("Client started.");
     
-    jsonGameWorld = null;
-    cursorVisible = true;
+    serverString = "";
     
-    try
-    {
-      robot = new Robot();
-    }
-    catch (AWTException e) 
-    {
-      println(e);
-      robot = null;
-    }
+    actionBuffer = new ArrayList<IAction>();
   }
   
   @Override public void update(int deltaTime)
   {
-    if (myClient.active() && myClient.available() > 0)
+    if (myClient.active())
     {
-      String jsonGameWorldString = new String();
-      while (myClient.available() > 0)
+      for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
       {
-        jsonGameWorldString += myClient.readString();
+        actionBuffer.add(event.getRequiredActionParameter("action"));
       }
-      try
+      
+      if (myClient.available() > 0)
       {
-        jsonGameWorld = JSONArray.parse(jsonGameWorldString);
+        serverString += myClient.readString();
+        JSONArray jsonGameWorld = JSONArray.parse(serverString);
         if (jsonGameWorld != null)
         {
           IGameObjectManager attempt = new GameObjectManager();
           attempt.deserialize(jsonGameWorld);
           sharedGameObjectManager = attempt;
+          for (IAction action : actionBuffer)
+          {
+            action.apply();
+          }
+          serverString = "";
         }
-      }
-      catch (Exception e)
-      {
-        println("caught");
-      }
-      sharedGameObjectManager.update(deltaTime);
-    }
-    else
-    {
-      sharedGameObjectManager.update(deltaTime);
-      jsonGameWorld = sharedGameObjectManager.serialize();
-      if (myClient.active())
-      {
-        myClient.write(jsonGameWorld.toString());
       }
     }
     
-    //if (robot != null)
-    //{
-    //  if (focused)
-    //  {
-    //    if (cursorVisible)
-    //    {
-    //      noCursor();
-    //      cursorVisible = false;
-    //    }
-    //    robot.mouseMove(0, 0);
-    //  }
-    //  else
-    //  {
-    //    if (!cursorVisible)
-    //    {
-    //      cursor(ARROW);
-    //      cursorVisible = true;
-    //    }
-    //  }
-    //}
-    //println(MouseInfo.getPointerInfo().getLocation());
+    sharedGameObjectManager.update(deltaTime);
+    scene.render();
+    
+    if (myClient.active())
+    {
+      JSONArray jsonActions = new JSONArray();
+      for (IAction action : actionBuffer)
+      {
+        jsonActions.append(action.serialize());
+      }
+      println("===================================================");
+      println("CLIENT");
+      println(jsonActions.toString());
+      myClient.write(jsonActions.toString());
+      actionBuffer.clear();
+    }
   }
   
   @Override public void onExit()
@@ -1730,23 +1985,26 @@ public class GameState_ClientState extends GameState
 public class GameState_ServerState extends GameState
 {
   private Server myServer;
+  private String clientString;
+  private int timePassed;
+  private final int TIME_TO_SEND;
   
   public GameState_ServerState()
   {
     super();
+    
+    TIME_TO_SEND = 100;
   }
   
   @Override public void onEnter()
   {
-    try
-    {
-      myServer = new Server(mainObject, 5204);
-      println("Server started.");
-    }
-    catch (Exception e)
-    {
-      println(e);
-    }
+    sharedGameObjectManager.fromXML("levels/sample_level.xml");
+    
+    myServer = new Server(mainObject, 5204);
+    println("Server started.");
+    
+    clientString = "";
+    timePassed = 0;
   }
   
   @Override public void update(int deltaTime)
@@ -1755,9 +2013,30 @@ public class GameState_ServerState extends GameState
     
     if (client != null)
     {
-      String message = client.readString();
-      println("message: " + message);
-      myServer.write(message);
+      clientString += client.readString();
+      JSONArray jsonActionList = JSONArray.parse(clientString);
+      if (jsonActionList != null)
+      {
+        println("==================================");
+        println("SERVER");
+        println(clientString);
+        
+        for (int i = 0; i < jsonActionList.size(); i++)
+        {
+          IAction action = deserializeAction(jsonActionList.getJSONObject(i));
+          action.apply();
+        }
+        
+        clientString = "";
+      }
+    }
+    
+    timePassed += deltaTime;
+    if (timePassed > TIME_TO_SEND)
+    {
+      myServer.write(sharedGameObjectManager.serialize().toString());
+      
+      timePassed = 0;
     }
   }
   
@@ -2261,7 +2540,7 @@ public abstract class Camera implements ICamera
   {
     position = new PVector(0.0f, 0.0f, 10.0f);
     target = new PVector(0.0f, 0.0f, 0.0f);
-    up = new PVector(0.0f, 1.0f, 0.0f);
+    up = new PVector(0.0f, -1.0f, 0.0f);
   }
   
   @Override public void apply()

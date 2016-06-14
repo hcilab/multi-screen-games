@@ -162,7 +162,7 @@ public abstract class Camera implements ICamera
   {
     position = new PVector(0.0f, 0.0f, 10.0f);
     target = new PVector(0.0f, 0.0f, 0.0f);
-    up = new PVector(0.0f, 1.0f, 0.0f);
+    up = new PVector(0.0f, -1.0f, 0.0f);
   }
   
   @Override public void apply()

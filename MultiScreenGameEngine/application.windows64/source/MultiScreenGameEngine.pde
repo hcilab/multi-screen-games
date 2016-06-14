@@ -15,6 +15,7 @@ import processing.net.Client;
 import processing.net.Server;
 
 MultiScreenGameEngine mainObject;
+IEventManager eventManager;
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IScene scene;
@@ -28,6 +29,7 @@ void setup()
   surface.setResizable(true);
   
   mainObject = this;
+  eventManager = new EventManager();
   textureManager = new TextureManager();
   materialLibManager = new MaterialLibManager(); 
   scene = new Scene();
@@ -49,10 +51,31 @@ void draw()
   {
     deltaTime = 32;
   }
+  //println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
+  //if (robot != null)
+  //{
+  //  if (focused)
+  //  {
+  //    if (cursorVisible)
+  //    {
+  //      noCursor();
+  //      cursorVisible = false;
+  //    }
+  //    robot.mouseMove(0, 0);
+  //  }
+  //  else
+  //  {
+  //    if (!cursorVisible)
+  //    {
+  //      cursor(ARROW);
+  //      cursorVisible = true;
+  //    }
+  //  }
+  //}
+  //println(MouseInfo.getPointerInfo().getLocation());
   
   gameStateController.update(deltaTime);
-  
-  scene.render();
+  eventManager.update();
 }

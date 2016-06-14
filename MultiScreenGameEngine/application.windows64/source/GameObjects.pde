@@ -23,6 +23,9 @@ interface IGameObject
   // Every instantiated Game Object has a unique ID.
   public int getUID();
   
+  // Every GameObject has a back-reference to its manager.
+  public IGameObjectManager getGameObjectManager();
+  
   // A Game Object can have a tag which may be used for various purposes. e.g. if (getTag() == "player") { ... }
   public String getTag();
   public void setTag(String _tag);
@@ -61,7 +64,6 @@ interface IGameObjectManager
   
   public void update(int deltaTime);
   
-  public void                   addGameObject(IGameObject gameObject);
   public IGameObject            addGameObject(String fileName, PVector translation, PVector rotation, PVector scale);
   public IGameObject            getGameObject(int UID);
   public ArrayList<IGameObject> getGameObjectsByTag(String tag);
@@ -76,9 +78,10 @@ interface IGameObjectManager
 // Increments such that every GameObject has a unique ID.
 int gameObjectNextUID = 0;
 
-class GameObject implements IGameObject
+public class GameObject implements IGameObject
 {
   private int UID;
+  private IGameObjectManager owner;
   private String tag;
   
   private PVector translation;
@@ -87,11 +90,11 @@ class GameObject implements IGameObject
   
   private ArrayList<IComponent> components;
   
-  public GameObject(PVector _translation, PVector _rotation, PVector _scale)
+  public GameObject(IGameObjectManager _owner, PVector _translation, PVector _rotation, PVector _scale)
   {
     UID = gameObjectNextUID;
     gameObjectNextUID++;
-    
+    owner = _owner;
     tag = "";
     
     translation = _translation;
@@ -101,8 +104,10 @@ class GameObject implements IGameObject
     components = new ArrayList<IComponent>();
   }
   
-  public GameObject(JSONObject jsonGameObject)
+  public GameObject(IGameObjectManager _owner, JSONObject jsonGameObject)
   {
+    owner = _owner;
+    
     translation = new PVector();
     rotation = new PVector();
     scale = new PVector();
@@ -208,6 +213,11 @@ class GameObject implements IGameObject
     return UID;
   }
   
+  @Override public IGameObjectManager getGameObjectManager()
+  {
+    return owner;
+  }
+  
   @Override public String getTag()
   {
     return tag;
@@ -289,7 +299,7 @@ class GameObject implements IGameObject
   }
 }
 
-class GameObjectManager implements IGameObjectManager
+public class GameObjectManager implements IGameObjectManager
 {
   private HashMap<Integer, IGameObject> gameObjects;
   private ArrayList<IGameObject> addList;
@@ -338,7 +348,7 @@ class GameObjectManager implements IGameObjectManager
         }
       }
       
-      IGameObject gameObject = new GameObject(translation, rotation, scale);
+      IGameObject gameObject = new GameObject(this, translation, rotation, scale);
       String tag = xmlGameObject.getString("tag");
       if (tag != null)
       {
@@ -369,13 +379,18 @@ class GameObjectManager implements IGameObjectManager
     
     for (int i = 0; i < jsonGameWorld.size(); i++)
     {
-      IGameObject gameObject = new GameObject(jsonGameWorld.getJSONObject(i));
+      IGameObject gameObject = new GameObject(this, jsonGameWorld.getJSONObject(i));
       gameObjects.put(gameObject.getUID(), gameObject);
     }
   }
   
   @Override public void update(int deltaTime)
   {
+    for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
+    {
+      event.getRequiredActionParameter("action").apply();
+    }
+    
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
@@ -399,14 +414,9 @@ class GameObjectManager implements IGameObjectManager
     removeList.clear();
   }
   
-  @Override public void addGameObject(IGameObject gameObject)
-  {
-    addList.add(gameObject);
-  }
-  
   @Override public IGameObject addGameObject(String fileName, PVector translation, PVector rotation, PVector scale)
   {
-    IGameObject gameObject = new GameObject(translation, rotation, scale);
+    IGameObject gameObject = new GameObject(this, translation, rotation, scale);
     gameObject.fromXML(fileName);
     addList.add(gameObject);
     return gameObject;

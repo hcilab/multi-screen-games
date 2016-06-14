@@ -10,7 +10,7 @@
 		rightLimit="100.0"
 		
 		movingDown="true"
-		yUnitsPerSecond="0.0"
+		yUnitsPerSecond="50.0"
 		lowerLimit="-100.0"
 		upperLimit="100.0"
 		
