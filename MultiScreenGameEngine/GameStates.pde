@@ -120,9 +120,7 @@ public class GameState_ClientState extends GameState
         JSONArray jsonGameWorld = JSONArray.parse(serverString);
         if (jsonGameWorld != null)
         {
-          IGameObjectManager attempt = new GameObjectManager();
-          attempt.deserialize(jsonGameWorld);
-          sharedGameObjectManager = attempt;
+          sharedGameObjectManager.deserialize(jsonGameWorld);
           for (IAction action : actionBuffer)
           {
             action.apply();
@@ -167,7 +165,7 @@ public class GameState_ServerState extends GameState
   {
     super();
     
-    TIME_TO_SEND = 100;
+    TIME_TO_SEND = 0;
   }
   
   @Override public void onEnter()
@@ -248,14 +246,14 @@ public class GameStateController implements IGameStateController
     IGameState poppedState = stateStack.peekLast();
     poppedState.onExit();
     stateStack.removeLast();
-    if (stateStack.isEmpty())
-    {
-      exit();
-    }
   }
   
   @Override public IGameState getCurrentState()
   {
+    if (stateStack.size() < 1)
+    {
+      return null;
+    }
     return stateStack.peekLast();
   }
   

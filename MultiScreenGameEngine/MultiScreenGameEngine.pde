@@ -48,11 +48,11 @@ void draw()
   int deltaTime = currentFrameTime - lastFrameTime;
   lastFrameTime = currentFrameTime;
   
-  if (deltaTime > 100)
-  {
-    deltaTime = 32;
-  }
-  //println(deltaTime);
+  //if (deltaTime > 100)
+  //{
+  //  deltaTime = 32;
+  //}
+  println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
   //if (robot != null)
@@ -79,4 +79,13 @@ void draw()
   
   gameStateController.update(deltaTime);
   eventManager.update();
+}
+
+void exit()
+{
+  while (gameStateController.getCurrentState() != null)
+  {
+    gameStateController.popState();
+  }
+  super.exit();
 }
