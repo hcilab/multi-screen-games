@@ -1,8 +1,7 @@
 //======================================================================================================
 // Author: David Hanna
 //
-// A Game Engine that extends networked multiplayer gaming to also accomodate each player
-// with multiple screens.
+// A Game Engine that provides the utility to enable multiple screens of gameplay and interaction.
 //======================================================================================================
 
 import java.util.ArrayList;
@@ -51,7 +50,7 @@ void draw()
   {
     deltaTime = 32;
   }
-  //println(deltaTime);
+  println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
   //if (robot != null)

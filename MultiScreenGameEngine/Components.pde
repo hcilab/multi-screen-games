@@ -246,6 +246,21 @@ public class TranslateOverTimeComponent extends Component
     super(_gameObject);
   }
   
+  public void setMovingLeft(boolean _movingLeft)
+  {
+    movingLeft = _movingLeft;
+  }
+  
+  public void setMovingDown(boolean _movingDown)
+  {
+    movingDown = _movingDown;
+  }
+  
+  public void setMovingForward(boolean _movingForward)
+  {
+    movingForward = _movingForward;
+  }
+  
   @Override public void fromXML(XML xmlComponent)
   {
     movingLeft = xmlComponent.getString("movingLeft").equals("true") ? true : false;
@@ -320,6 +335,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().x < leftLimit)
       {
         movingLeft = false;
+        sendSetMovingLeftActionEvent();
       }
     }
     else
@@ -329,6 +345,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().x > rightLimit)
       {
         movingLeft = true;
+        sendSetMovingLeftActionEvent();
       }
     }
     
@@ -339,6 +356,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().y < lowerLimit)
       {
         movingDown = false;
+        sendSetMovingDownActionEvent();
       }
     }
     else
@@ -348,6 +366,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().y > upperLimit)
       {
         movingDown = true;
+        sendSetMovingDownActionEvent();
       }
     }    
     
@@ -358,6 +377,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().z < forwardLimit)
       {
         movingForward = false;
+        sendSetMovingForwardActionEvent();
       }
     }
     else
@@ -367,15 +387,58 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().z > backwardLimit)
       {
         movingForward = true;
+        sendSetMovingForwardActionEvent();
       }
     }
     
-    //gameObject.translate(translation.mult(deltaTime));
+    translation = translation.mult(deltaTime);
+    gameObject.translate(translation);
+    sendTranslateActionEvent(translation);
+  }
+  
+  private void sendSetMovingLeftActionEvent()
+  {
+    SetMovingLeftAction setMovingLeftAction = new SetMovingLeftAction();
+    setMovingLeftAction.setTarget(gameObject);
+    setMovingLeftAction.setMovingLeft(movingLeft);
+    
+    IEvent setMovingLeftEvent = new Event(EventType.ACTION);
+    setMovingLeftEvent.addActionParameter("action", setMovingLeftAction);
+    
+    eventManager.queueEvent(setMovingLeftEvent);
+  }
+  
+  private void sendSetMovingDownActionEvent()
+  {
+    SetMovingDownAction setMovingDownAction = new SetMovingDownAction();
+    setMovingDownAction.setTarget(gameObject);
+    setMovingDownAction.setMovingDown(movingDown);
+    
+    IEvent setMovingDownEvent = new Event(EventType.ACTION);
+    setMovingDownEvent.addActionParameter("action", setMovingDownAction);
+    
+    eventManager.queueEvent(setMovingDownEvent);
+  }
+  
+  private void sendSetMovingForwardActionEvent()
+  {
+    SetMovingForwardAction setMovingForwardAction = new SetMovingForwardAction();
+    setMovingForwardAction.setTarget(gameObject);
+    setMovingForwardAction.setMovingForward(movingForward);
+    
+    IEvent setMovingForwardEvent = new Event(EventType.ACTION);
+    setMovingForwardEvent.addActionParameter("action", setMovingForwardAction);
+    
+    eventManager.queueEvent(setMovingForwardEvent);
+  }
+  
+  private void sendTranslateActionEvent(PVector translation)
+  {
     TranslateAction translateAction = new TranslateAction();
     translateAction.setTarget(gameObject);
-    translateAction.setTranslation(translation.mult(deltaTime));
+    translateAction.setTranslation(translation);
     
-    IEvent event = new Event(EventType.APPLY_ACTION);
+    IEvent event = new Event(EventType.ACTION);
     event.addActionParameter("action", translateAction);
     
     eventManager.queueEvent(event);
@@ -430,11 +493,18 @@ public class RotateOverTimeComponent extends Component
   
   @Override public void update(int deltaTime)
   {
+    PVector rotation = new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime);
+    gameObject.rotate(rotation);
+    sendRotateActionEvent(rotation);
+  }
+  
+  private void sendRotateActionEvent(PVector rotation)
+  {
     RotateAction rotateAction = new RotateAction();
     rotateAction.setTarget(gameObject);
-    rotateAction.setRotation(new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime));
+    rotateAction.setRotation(rotation);
     
-    IEvent event = new Event(EventType.APPLY_ACTION);
+    IEvent event = new Event(EventType.ACTION);
     event.addActionParameter("action", rotateAction);
     
     eventManager.queueEvent(event);
@@ -462,6 +532,21 @@ public class ScaleOverTimeComponent extends Component
   public ScaleOverTimeComponent(IGameObject _gameObject)
   {
     super(_gameObject);
+  }
+  
+  public void setXScalingUp(boolean _xScalingUp)
+  {
+    xScalingUp = _xScalingUp;
+  }
+  
+  public void setYScalingUp(boolean _yScalingUp)
+  {
+    yScalingUp = _yScalingUp;
+  }
+  
+  public void setZScalingUp(boolean _zScalingUp)
+  {
+    zScalingUp = _zScalingUp;
   }
   
   @Override public void fromXML(XML xmlComponent)
@@ -538,6 +623,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().x > xUpperLimit)
       {
         xScalingUp = false;
+        sendSetXScalingUpActionEvent();
       }
     }
     else
@@ -547,6 +633,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().x < xLowerLimit)
       {
         xScalingUp = true;
+        sendSetXScalingUpActionEvent();
       }
     }
     
@@ -557,6 +644,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().y > yUpperLimit)
       {
         yScalingUp = false;
+        sendSetYScalingUpActionEvent();
       }
     }
     else
@@ -566,6 +654,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().y < yLowerLimit)
       {
         yScalingUp = true;
+        sendSetYScalingUpActionEvent();
       }
     }
     
@@ -576,6 +665,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().z > zUpperLimit)
       {
         zScalingUp = false;
+        sendSetZScalingUpActionEvent();
       }
     }
     else
@@ -585,14 +675,58 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().z < zLowerLimit)
       {
         zScalingUp = true;
+        sendSetZScalingUpActionEvent();
       }
     }
     
+    scale = scale.mult(deltaTime);
+    gameObject.scale(scale);
+    sendScaleActionEvent(scale);
+  }
+  
+  private void sendSetXScalingUpActionEvent()
+  {
+    SetXScalingUpAction setXScalingUpAction = new SetXScalingUpAction();
+    setXScalingUpAction.setTarget(gameObject);
+    setXScalingUpAction.setXScalingUp(xScalingUp);
+    
+    IEvent event = new Event(EventType.ACTION);
+    event.addActionParameter("action", setXScalingUpAction);
+    
+    eventManager.queueEvent(event);
+  }
+  
+  private void sendSetYScalingUpActionEvent()
+  {
+    SetYScalingUpAction setYScalingUpAction = new SetYScalingUpAction();
+    setYScalingUpAction.setTarget(gameObject);
+    setYScalingUpAction.setYScalingUp(yScalingUp);
+    
+    IEvent event = new Event(EventType.ACTION);
+    event.addActionParameter("action", setYScalingUpAction);
+    
+    eventManager.queueEvent(event);
+  }
+  
+  private void sendSetZScalingUpActionEvent()
+  {
+    SetZScalingUpAction setZScalingUpAction = new SetZScalingUpAction();
+    setZScalingUpAction.setTarget(gameObject);
+    setZScalingUpAction.setZScalingUp(zScalingUp);
+    
+    IEvent event = new Event(EventType.ACTION);
+    event.addActionParameter("action", setZScalingUpAction);
+    
+    eventManager.queueEvent(event);
+  }
+  
+  private void sendScaleActionEvent(PVector scale)
+  {
     ScaleAction scaleAction = new ScaleAction();
     scaleAction.setTarget(gameObject);
-    scaleAction.setScale(scale.mult(deltaTime));
+    scaleAction.setScale(scale);
     
-    IEvent event = new Event(EventType.APPLY_ACTION);
+    IEvent event = new Event(EventType.ACTION);
     event.addActionParameter("action", scaleAction);
     
     eventManager.queueEvent(event);

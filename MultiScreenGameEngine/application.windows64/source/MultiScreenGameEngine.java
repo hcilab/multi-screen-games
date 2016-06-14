@@ -26,8 +26,7 @@ public class MultiScreenGameEngine extends PApplet {
 //======================================================================================================
 // Author: David Hanna
 //
-// A Game Engine that extends networked multiplayer gaming to also accomodate each player
-// with multiple screens.
+// A Game Engine that provides the utility to enable multiple screens of gameplay and interaction.
 //======================================================================================================
 
 
@@ -116,9 +115,20 @@ public void draw()
 
 public enum ActionType
 {
+  // TranslateOverTimeComponent
   TRANSLATE,
+  SET_MOVING_LEFT,
+  SET_MOVING_DOWN,
+  SET_MOVING_FORWARD,
+  
+  // RotateOverTimeComponent
   ROTATE,
+  
+  // ScaleOverTimeComponent
   SCALE,
+  SET_X_SCALING_UP,
+  SET_Y_SCALING_UP,
+  SET_Z_SCALING_UP,
 }
 
 public interface IAction
@@ -127,7 +137,6 @@ public interface IAction
   public ActionType getActionType();
   
   public void apply();
-  public void undo();
   
   public JSONObject serialize();
   public void deserialize(JSONObject jsonAction);
@@ -144,11 +153,29 @@ public String actionTypeEnumToString(ActionType actionType)
     case TRANSLATE:
       return "translate";
       
+    case SET_MOVING_LEFT:
+      return "setMovingLeft";
+      
+    case SET_MOVING_DOWN:
+      return "setMovingDown";
+      
+    case SET_MOVING_FORWARD:
+      return "setMovingForward";
+      
     case ROTATE:
       return "rotate";
       
     case SCALE:
       return "scale";
+      
+    case SET_X_SCALING_UP:
+      return "setXScalingUp";
+      
+    case SET_Y_SCALING_UP:
+      return "setYScalingUp";
+      
+    case SET_Z_SCALING_UP:
+      return "setZScalingUp";
       
     default:
       println("Assertion: ActionType not added to EnumToString.");
@@ -164,11 +191,29 @@ public ActionType actionTypeStringToEnum(String actionType)
     case "translate":
       return ActionType.TRANSLATE;
       
+    case "setMovingLeft":
+      return ActionType.SET_MOVING_LEFT;
+      
+    case "setMovingDown":
+      return ActionType.SET_MOVING_DOWN;
+      
+    case "setMovingForward":
+      return ActionType.SET_MOVING_FORWARD;
+      
     case "rotate":
       return ActionType.ROTATE;
       
     case "scale":
       return ActionType.SCALE;
+      
+    case "setXScalingUp":
+      return ActionType.SET_X_SCALING_UP;
+      
+    case "setYScalingUp":
+      return ActionType.SET_Y_SCALING_UP;
+      
+    case "setZScalingUp":
+      return ActionType.SET_Z_SCALING_UP;
       
     default:
       println("Assertion: String not mapped to an ActionType.");
@@ -235,11 +280,6 @@ public class TranslateAction extends Action
     target.translate(translation);
   }
   
-  @Override public void undo()
-  {
-    target.translate(new PVector(-translation.x, -translation.y, -translation.z));
-  }
-  
   @Override public JSONObject serialize()
   {
     JSONObject jsonTranslateAction = new JSONObject();
@@ -259,6 +299,159 @@ public class TranslateAction extends Action
     translation.x = jsonTranslateAction.getFloat("x");
     translation.y = jsonTranslateAction.getFloat("y");
     translation.z = jsonTranslateAction.getFloat("z");
+  }
+}
+
+public class SetMovingLeftAction extends Action
+{
+  private IGameObject target;
+  private boolean movingLeft;
+  
+  public SetMovingLeftAction()
+  {
+    super();
+    
+    target = null;
+    movingLeft = false;
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SET_MOVING_LEFT;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public void setMovingLeft(boolean _movingLeft)
+  {
+    movingLeft = _movingLeft;
+  }
+  
+  @Override public void apply()
+  {
+    ((TranslateOverTimeComponent)target.getComponent(ComponentType.TRANSLATE_OVER_TIME)).setMovingLeft(movingLeft);
+  }
+  
+  @Override public JSONObject serialize()
+  {
+    JSONObject jsonSetMovingLeftAction = new JSONObject();
+    
+    jsonSetMovingLeftAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_MOVING_LEFT));
+    jsonSetMovingLeftAction.setInt("uid", target.getUID());
+    jsonSetMovingLeftAction.setBoolean("movingLeft", movingLeft);
+    
+    return jsonSetMovingLeftAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonSetMovingLeftAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetMovingLeftAction.getInt("uid"));
+    movingLeft = jsonSetMovingLeftAction.getBoolean("movingLeft");
+  }
+}
+
+public class SetMovingDownAction extends Action
+{
+  private IGameObject target;
+  private boolean movingDown;
+  
+  public SetMovingDownAction()
+  {
+    super();
+    
+    target = null;
+    movingDown = false;
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SET_MOVING_DOWN;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public void setMovingDown(boolean _movingDown)
+  {
+    movingDown = _movingDown;
+  }
+  
+  @Override public void apply()
+  {
+    ((TranslateOverTimeComponent)target.getComponent(ComponentType.TRANSLATE_OVER_TIME)).setMovingDown(movingDown);
+  }
+  
+  @Override public JSONObject serialize()
+  {
+    JSONObject jsonSetMovingDownAction = new JSONObject();
+    
+    jsonSetMovingDownAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_MOVING_DOWN));
+    jsonSetMovingDownAction.setInt("uid", target.getUID());
+    jsonSetMovingDownAction.setBoolean("movingDown", movingDown);
+    
+    return jsonSetMovingDownAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonSetMovingDownAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetMovingDownAction.getInt("uid"));
+    movingDown = jsonSetMovingDownAction.getBoolean("movingDown");
+  }
+}
+
+public class SetMovingForwardAction extends Action
+{
+  private IGameObject target;
+  private boolean movingForward;
+  
+  public SetMovingForwardAction()
+  {
+    super();
+    
+    target = null;
+    movingForward = false;
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SET_MOVING_FORWARD;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public void setMovingForward(boolean _movingForward)
+  {
+    movingForward = _movingForward;
+  }
+  
+  @Override public void apply()
+  {
+    ((TranslateOverTimeComponent)target.getComponent(ComponentType.TRANSLATE_OVER_TIME)).setMovingForward(movingForward);
+  }
+  
+  @Override public JSONObject serialize()
+  {
+    JSONObject jsonSetMovingForwardAction = new JSONObject();
+    
+    jsonSetMovingForwardAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_MOVING_FORWARD));
+    jsonSetMovingForwardAction.setInt("uid", target.getUID());
+    jsonSetMovingForwardAction.setBoolean("movingForward", movingForward);
+    
+    return jsonSetMovingForwardAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonSetMovingForwardAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetMovingForwardAction.getInt("uid"));
+    movingForward = jsonSetMovingForwardAction.getBoolean("movingForward");
   }
 }
 
@@ -303,11 +496,6 @@ public class RotateAction extends Action
   @Override public void apply()
   {
     target.rotate(rotation);
-  }
-  
-  @Override public void undo()
-  {
-    target.rotate(new PVector(-rotation.x, -rotation.y, -rotation.z));
   }
   
   @Override public JSONObject serialize()
@@ -375,11 +563,6 @@ public class ScaleAction extends Action
     target.scale(scale);
   }
   
-  @Override public void undo()
-  {
-    target.scale(new PVector(-scale.x, -scale.y, -scale.z));
-  }
-  
   @Override public JSONObject serialize()
   {
     JSONObject jsonScaleAction = new JSONObject();
@@ -402,6 +585,159 @@ public class ScaleAction extends Action
   }
 }
 
+public class SetXScalingUpAction extends Action
+{
+  private IGameObject target;
+  private boolean xScalingUp;
+  
+  public SetXScalingUpAction()
+  {
+    super();
+    
+    target = null;
+    xScalingUp = false;
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SET_X_SCALING_UP;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public void setXScalingUp(boolean _xScalingUp)
+  {
+    xScalingUp = _xScalingUp;
+  }
+  
+  @Override public void apply()
+  {
+    ((ScaleOverTimeComponent)target.getComponent(ComponentType.SCALE_OVER_TIME)).setXScalingUp(xScalingUp);
+  }
+  
+  @Override public JSONObject serialize()
+  {
+    JSONObject jsonSetXScalingUpAction = new JSONObject();
+    
+    jsonSetXScalingUpAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_X_SCALING_UP));
+    jsonSetXScalingUpAction.setInt("uid", target.getUID());
+    jsonSetXScalingUpAction.setBoolean("xScalingUp", xScalingUp);
+    
+    return jsonSetXScalingUpAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonSetXScalingUpAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetXScalingUpAction.getInt("uid"));
+    xScalingUp = jsonSetXScalingUpAction.getBoolean("xScalingUp");
+  }
+}
+
+public class SetYScalingUpAction extends Action
+{
+  private IGameObject target;
+  private boolean yScalingUp;
+  
+  public SetYScalingUpAction()
+  {
+    super();
+    
+    target = null;
+    yScalingUp = false;
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SET_Y_SCALING_UP;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public void setYScalingUp(boolean _yScalingUp)
+  {
+    yScalingUp = _yScalingUp;
+  }
+  
+  @Override public void apply()
+  {
+    ((ScaleOverTimeComponent)target.getComponent(ComponentType.SCALE_OVER_TIME)).setYScalingUp(yScalingUp);
+  }
+  
+  @Override public JSONObject serialize()
+  {
+    JSONObject jsonSetYScalingUpAction = new JSONObject();
+    
+    jsonSetYScalingUpAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_Y_SCALING_UP));
+    jsonSetYScalingUpAction.setInt("uid", target.getUID());
+    jsonSetYScalingUpAction.setBoolean("yScalingUp", yScalingUp);
+    
+    return jsonSetYScalingUpAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonSetYScalingUpAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetYScalingUpAction.getInt("uid"));
+    yScalingUp = jsonSetYScalingUpAction.getBoolean("yScalingUp");
+  }
+}
+
+public class SetZScalingUpAction extends Action
+{
+  private IGameObject target;
+  private boolean zScalingUp;
+  
+  public SetZScalingUpAction()
+  {
+    super();
+    
+    target = null;
+    zScalingUp = false;
+  }
+  
+  @Override public ActionType getActionType()
+  {
+    return ActionType.SET_Y_SCALING_UP;
+  }
+  
+  public void setTarget(IGameObject _target)
+  {
+    target = _target;
+  }
+  
+  public void setZScalingUp(boolean _zScalingUp)
+  {
+    zScalingUp = _zScalingUp;
+  }
+  
+  @Override public void apply()
+  {
+    ((ScaleOverTimeComponent)target.getComponent(ComponentType.SCALE_OVER_TIME)).setZScalingUp(zScalingUp);
+  }
+  
+  @Override public JSONObject serialize()
+  {
+    JSONObject jsonSetZScalingUpAction = new JSONObject();
+    
+    jsonSetZScalingUpAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_Z_SCALING_UP));
+    jsonSetZScalingUpAction.setInt("uid", target.getUID());
+    jsonSetZScalingUpAction.setBoolean("zScalingUp", zScalingUp);
+    
+    return jsonSetZScalingUpAction;
+  }
+  
+  @Override public void deserialize(JSONObject jsonSetZScalingUpAction)
+  {
+    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetZScalingUpAction.getInt("uid"));
+    zScalingUp = jsonSetZScalingUpAction.getBoolean("zScalingUp");
+  }
+}
+
 public IAction deserializeAction(JSONObject jsonAction)
 {
   IAction action = null;
@@ -414,12 +750,36 @@ public IAction deserializeAction(JSONObject jsonAction)
       action = new TranslateAction();
       break;
       
+    case SET_MOVING_LEFT:
+      action = new SetMovingLeftAction();
+      break;
+      
+    case SET_MOVING_DOWN:
+      action = new SetMovingDownAction();
+      break;
+      
+    case SET_MOVING_FORWARD:
+      action = new SetMovingForwardAction();
+      break;
+      
     case ROTATE:
       action = new RotateAction();
       break;
       
     case SCALE:
       action = new ScaleAction();
+      break;
+      
+    case SET_X_SCALING_UP:
+      action = new SetXScalingUpAction();
+      break;
+      
+    case SET_Y_SCALING_UP:
+      action = new SetYScalingUpAction();
+      break;
+      
+    case SET_Z_SCALING_UP:
+      action = new SetZScalingUpAction();
       break;
       
     default:
@@ -682,6 +1042,21 @@ public class TranslateOverTimeComponent extends Component
     super(_gameObject);
   }
   
+  public void setMovingLeft(boolean _movingLeft)
+  {
+    movingLeft = _movingLeft;
+  }
+  
+  public void setMovingDown(boolean _movingDown)
+  {
+    movingDown = _movingDown;
+  }
+  
+  public void setMovingForward(boolean _movingForward)
+  {
+    movingForward = _movingForward;
+  }
+  
   @Override public void fromXML(XML xmlComponent)
   {
     movingLeft = xmlComponent.getString("movingLeft").equals("true") ? true : false;
@@ -756,6 +1131,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().x < leftLimit)
       {
         movingLeft = false;
+        sendSetMovingLeftActionEvent();
       }
     }
     else
@@ -765,6 +1141,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().x > rightLimit)
       {
         movingLeft = true;
+        sendSetMovingLeftActionEvent();
       }
     }
     
@@ -775,6 +1152,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().y < lowerLimit)
       {
         movingDown = false;
+        sendSetMovingDownActionEvent();
       }
     }
     else
@@ -784,6 +1162,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().y > upperLimit)
       {
         movingDown = true;
+        sendSetMovingDownActionEvent();
       }
     }    
     
@@ -794,6 +1173,7 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().z < forwardLimit)
       {
         movingForward = false;
+        sendSetMovingForwardActionEvent();
       }
     }
     else
@@ -803,15 +1183,58 @@ public class TranslateOverTimeComponent extends Component
       if (gameObject.getTranslation().z > backwardLimit)
       {
         movingForward = true;
+        sendSetMovingForwardActionEvent();
       }
     }
     
-    //gameObject.translate(translation.mult(deltaTime));
+    translation = translation.mult(deltaTime);
+    gameObject.translate(translation);
+    sendTranslateActionEvent(translation);
+  }
+  
+  private void sendSetMovingLeftActionEvent()
+  {
+    SetMovingLeftAction setMovingLeftAction = new SetMovingLeftAction();
+    setMovingLeftAction.setTarget(gameObject);
+    setMovingLeftAction.setMovingLeft(movingLeft);
+    
+    IEvent setMovingLeftEvent = new Event(EventType.ACTION);
+    setMovingLeftEvent.addActionParameter("action", setMovingLeftAction);
+    
+    eventManager.queueEvent(setMovingLeftEvent);
+  }
+  
+  private void sendSetMovingDownActionEvent()
+  {
+    SetMovingDownAction setMovingDownAction = new SetMovingDownAction();
+    setMovingDownAction.setTarget(gameObject);
+    setMovingDownAction.setMovingDown(movingDown);
+    
+    IEvent setMovingDownEvent = new Event(EventType.ACTION);
+    setMovingDownEvent.addActionParameter("action", setMovingDownAction);
+    
+    eventManager.queueEvent(setMovingDownEvent);
+  }
+  
+  private void sendSetMovingForwardActionEvent()
+  {
+    SetMovingForwardAction setMovingForwardAction = new SetMovingForwardAction();
+    setMovingForwardAction.setTarget(gameObject);
+    setMovingForwardAction.setMovingForward(movingForward);
+    
+    IEvent setMovingForwardEvent = new Event(EventType.ACTION);
+    setMovingForwardEvent.addActionParameter("action", setMovingForwardAction);
+    
+    eventManager.queueEvent(setMovingForwardEvent);
+  }
+  
+  private void sendTranslateActionEvent(PVector translation)
+  {
     TranslateAction translateAction = new TranslateAction();
     translateAction.setTarget(gameObject);
-    translateAction.setTranslation(translation.mult(deltaTime));
+    translateAction.setTranslation(translation);
     
-    IEvent event = new Event(EventType.APPLY_ACTION);
+    IEvent event = new Event(EventType.ACTION);
     event.addActionParameter("action", translateAction);
     
     eventManager.queueEvent(event);
@@ -866,11 +1289,18 @@ public class RotateOverTimeComponent extends Component
   
   @Override public void update(int deltaTime)
   {
+    PVector rotation = new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime);
+    gameObject.rotate(rotation);
+    sendRotateActionEvent(rotation);
+  }
+  
+  private void sendRotateActionEvent(PVector rotation)
+  {
     RotateAction rotateAction = new RotateAction();
     rotateAction.setTarget(gameObject);
-    rotateAction.setRotation(new PVector(xRadiansPerMillisecond * deltaTime, yRadiansPerMillisecond * deltaTime, zRadiansPerMillisecond * deltaTime));
+    rotateAction.setRotation(rotation);
     
-    IEvent event = new Event(EventType.APPLY_ACTION);
+    IEvent event = new Event(EventType.ACTION);
     event.addActionParameter("action", rotateAction);
     
     eventManager.queueEvent(event);
@@ -898,6 +1328,21 @@ public class ScaleOverTimeComponent extends Component
   public ScaleOverTimeComponent(IGameObject _gameObject)
   {
     super(_gameObject);
+  }
+  
+  public void setXScalingUp(boolean _xScalingUp)
+  {
+    xScalingUp = _xScalingUp;
+  }
+  
+  public void setYScalingUp(boolean _yScalingUp)
+  {
+    yScalingUp = _yScalingUp;
+  }
+  
+  public void setZScalingUp(boolean _zScalingUp)
+  {
+    zScalingUp = _zScalingUp;
   }
   
   @Override public void fromXML(XML xmlComponent)
@@ -974,6 +1419,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().x > xUpperLimit)
       {
         xScalingUp = false;
+        sendSetXScalingUpActionEvent();
       }
     }
     else
@@ -983,6 +1429,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().x < xLowerLimit)
       {
         xScalingUp = true;
+        sendSetXScalingUpActionEvent();
       }
     }
     
@@ -993,6 +1440,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().y > yUpperLimit)
       {
         yScalingUp = false;
+        sendSetYScalingUpActionEvent();
       }
     }
     else
@@ -1002,6 +1450,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().y < yLowerLimit)
       {
         yScalingUp = true;
+        sendSetYScalingUpActionEvent();
       }
     }
     
@@ -1012,6 +1461,7 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().z > zUpperLimit)
       {
         zScalingUp = false;
+        sendSetZScalingUpActionEvent();
       }
     }
     else
@@ -1021,14 +1471,58 @@ public class ScaleOverTimeComponent extends Component
       if (gameObject.getScale().z < zLowerLimit)
       {
         zScalingUp = true;
+        sendSetZScalingUpActionEvent();
       }
     }
     
+    scale = scale.mult(deltaTime);
+    gameObject.scale(scale);
+    sendScaleActionEvent(scale);
+  }
+  
+  private void sendSetXScalingUpActionEvent()
+  {
+    SetXScalingUpAction setXScalingUpAction = new SetXScalingUpAction();
+    setXScalingUpAction.setTarget(gameObject);
+    setXScalingUpAction.setXScalingUp(xScalingUp);
+    
+    IEvent event = new Event(EventType.ACTION);
+    event.addActionParameter("action", setXScalingUpAction);
+    
+    eventManager.queueEvent(event);
+  }
+  
+  private void sendSetYScalingUpActionEvent()
+  {
+    SetYScalingUpAction setYScalingUpAction = new SetYScalingUpAction();
+    setYScalingUpAction.setTarget(gameObject);
+    setYScalingUpAction.setYScalingUp(yScalingUp);
+    
+    IEvent event = new Event(EventType.ACTION);
+    event.addActionParameter("action", setYScalingUpAction);
+    
+    eventManager.queueEvent(event);
+  }
+  
+  private void sendSetZScalingUpActionEvent()
+  {
+    SetZScalingUpAction setZScalingUpAction = new SetZScalingUpAction();
+    setZScalingUpAction.setTarget(gameObject);
+    setZScalingUpAction.setZScalingUp(zScalingUp);
+    
+    IEvent event = new Event(EventType.ACTION);
+    event.addActionParameter("action", setZScalingUpAction);
+    
+    eventManager.queueEvent(event);
+  }
+  
+  private void sendScaleActionEvent(PVector scale)
+  {
     ScaleAction scaleAction = new ScaleAction();
     scaleAction.setTarget(gameObject);
-    scaleAction.setScale(scale.mult(deltaTime));
+    scaleAction.setScale(scale);
     
-    IEvent event = new Event(EventType.APPLY_ACTION);
+    IEvent event = new Event(EventType.ACTION);
     event.addActionParameter("action", scaleAction);
     
     eventManager.queueEvent(event);
@@ -1118,7 +1612,7 @@ public IComponent deserializeComponent(GameObject gameObject, JSONObject jsonCom
 // EventManager constructor a new collection for the type. 
 public enum EventType
 {
-  APPLY_ACTION
+  ACTION,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -1314,7 +1808,7 @@ public class EventManager implements IEventManager
     queuedEvents = new HashMap<EventType, ArrayList<IEvent>>();
     readyEvents = new HashMap<EventType, ArrayList<IEvent>>();
     
-    addEventTypeToMaps(EventType.APPLY_ACTION);
+    addEventTypeToMaps(EventType.ACTION);
   }
   
   private void addEventTypeToMaps(EventType eventType)
@@ -1740,11 +2234,6 @@ public class GameObjectManager implements IGameObjectManager
   
   @Override public void update(int deltaTime)
   {
-    for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
-    {
-      event.getRequiredActionParameter("action").apply();
-    }
-    
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
@@ -1924,7 +2413,7 @@ public class GameState_ClientState extends GameState
   {
     sharedGameObjectManager.fromXML("levels/sample_level.xml");
     
-    myClient = new Client(mainObject, "127.0.0.1", 5204);
+    myClient = new Client(mainObject, "131.202.105.28", 5204);
     println("Client started.");
     
     serverString = "";
@@ -1936,7 +2425,7 @@ public class GameState_ClientState extends GameState
   {
     if (myClient.active())
     {
-      for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
+      for (IEvent event : eventManager.getEvents(EventType.ACTION))
       {
         actionBuffer.add(event.getRequiredActionParameter("action"));
       }
@@ -1950,10 +2439,10 @@ public class GameState_ClientState extends GameState
           IGameObjectManager attempt = new GameObjectManager();
           attempt.deserialize(jsonGameWorld);
           sharedGameObjectManager = attempt;
-          for (IAction action : actionBuffer)
-          {
-            action.apply();
-          }
+          //for (IAction action : actionBuffer)
+          //{
+          //  action.apply();
+          //}
           serverString = "";
         }
       }
@@ -1969,10 +2458,10 @@ public class GameState_ClientState extends GameState
       {
         jsonActions.append(action.serialize());
       }
-      println("===================================================");
-      println("CLIENT");
-      println(jsonActions.toString());
-      myClient.write(jsonActions.toString());
+      if (jsonActions.size() > 0)
+      {
+        myClient.write(jsonActions.toString());
+      }
       actionBuffer.clear();
     }
   }
@@ -2014,20 +2503,20 @@ public class GameState_ServerState extends GameState
     if (client != null)
     {
       clientString += client.readString();
-      JSONArray jsonActionList = JSONArray.parse(clientString);
-      if (jsonActionList != null)
+      JSONArray jsonActionList = new JSONArray();
+      while (jsonActionList != null)
       {
-        println("==================================");
-        println("SERVER");
-        println(clientString);
-        
-        for (int i = 0; i < jsonActionList.size(); i++)
+        JSONArrayParseResult parseResult = parseJSONArrayFromString(clientString);
+        jsonActionList = parseResult.jsonArray;
+        if (jsonActionList != null)
         {
-          IAction action = deserializeAction(jsonActionList.getJSONObject(i));
-          action.apply();
+          for (int i = 0; i < jsonActionList.size(); i++)
+          {
+            IAction action = deserializeAction(jsonActionList.getJSONObject(i));
+            action.apply();
+          }
+          clientString = parseResult.remainingString;
         }
-        
-        clientString = "";
       }
     }
     
@@ -3211,6 +3700,64 @@ public class TextureManager implements ITextureManager
     }
     return textures.get(name);
   }
+}
+//======================================================================================================
+// Author: David Hanna
+//
+// Miscellaneous functions to help with miscellaneous things.
+//======================================================================================================
+
+public class JSONArrayParseResult
+{
+  public JSONArray jsonArray = null;
+  public String remainingString = null;
+}
+
+public JSONArrayParseResult parseJSONArrayFromString(String jsonArrayString)
+{
+  JSONArrayParseResult parseResult = new JSONArrayParseResult();
+  if (jsonArrayString.length() == 0)
+  {
+    return parseResult;
+  }
+  
+  jsonArrayString = jsonArrayString.trim();
+  char[] jsonArrayCharacters = jsonArrayString.toCharArray();
+  
+  if (jsonArrayCharacters[0] == '[')
+  {
+    int openBracketCount = 1;
+    
+    for (int i = 1; i < jsonArrayCharacters.length; i++)
+    {
+      if (jsonArrayCharacters[i] == '[')
+      {
+        openBracketCount++;
+      }
+      else if (jsonArrayCharacters[i] == ']')
+      {
+        openBracketCount--;
+      }
+      
+      if (openBracketCount == 0)
+      {
+        parseResult.jsonArray = JSONArray.parse(jsonArrayString.substring(0, i + 1));
+        
+        if (i < jsonArrayString.length() - 1)
+        {
+          parseResult.remainingString = jsonArrayString.substring(i + 1, jsonArrayString.length());
+        }
+        else
+        {
+          parseResult.remainingString = "";
+        }
+        
+        break;
+      }
+    }
+  }
+  
+  return parseResult;
 }
   public void settings() {  size(800, 600, P3D); }
   static public void main(String[] passedArgs) {

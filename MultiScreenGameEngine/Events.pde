@@ -12,7 +12,7 @@
 // EventManager constructor a new collection for the type. 
 public enum EventType
 {
-  APPLY_ACTION
+  ACTION,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -208,7 +208,7 @@ public class EventManager implements IEventManager
     queuedEvents = new HashMap<EventType, ArrayList<IEvent>>();
     readyEvents = new HashMap<EventType, ArrayList<IEvent>>();
     
-    addEventTypeToMaps(EventType.APPLY_ACTION);
+    addEventTypeToMaps(EventType.ACTION);
   }
   
   private void addEventTypeToMaps(EventType eventType)

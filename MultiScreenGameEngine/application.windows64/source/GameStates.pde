@@ -105,7 +105,7 @@ public class GameState_ClientState extends GameState
   {
     sharedGameObjectManager.fromXML("levels/sample_level.xml");
     
-    myClient = new Client(mainObject, "127.0.0.1", 5204);
+    myClient = new Client(mainObject, "131.202.105.28", 5204);
     println("Client started.");
     
     serverString = "";
@@ -117,7 +117,7 @@ public class GameState_ClientState extends GameState
   {
     if (myClient.active())
     {
-      for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
+      for (IEvent event : eventManager.getEvents(EventType.ACTION))
       {
         actionBuffer.add(event.getRequiredActionParameter("action"));
       }
@@ -131,10 +131,10 @@ public class GameState_ClientState extends GameState
           IGameObjectManager attempt = new GameObjectManager();
           attempt.deserialize(jsonGameWorld);
           sharedGameObjectManager = attempt;
-          for (IAction action : actionBuffer)
-          {
-            action.apply();
-          }
+          //for (IAction action : actionBuffer)
+          //{
+          //  action.apply();
+          //}
           serverString = "";
         }
       }
@@ -150,10 +150,10 @@ public class GameState_ClientState extends GameState
       {
         jsonActions.append(action.serialize());
       }
-      println("===================================================");
-      println("CLIENT");
-      println(jsonActions.toString());
-      myClient.write(jsonActions.toString());
+      if (jsonActions.size() > 0)
+      {
+        myClient.write(jsonActions.toString());
+      }
       actionBuffer.clear();
     }
   }
@@ -195,20 +195,20 @@ public class GameState_ServerState extends GameState
     if (client != null)
     {
       clientString += client.readString();
-      JSONArray jsonActionList = JSONArray.parse(clientString);
-      if (jsonActionList != null)
+      JSONArray jsonActionList = new JSONArray();
+      while (jsonActionList != null)
       {
-        println("==================================");
-        println("SERVER");
-        println(clientString);
-        
-        for (int i = 0; i < jsonActionList.size(); i++)
+        JSONArrayParseResult parseResult = parseJSONArrayFromString(clientString);
+        jsonActionList = parseResult.jsonArray;
+        if (jsonActionList != null)
         {
-          IAction action = deserializeAction(jsonActionList.getJSONObject(i));
-          action.apply();
+          for (int i = 0; i < jsonActionList.size(); i++)
+          {
+            IAction action = deserializeAction(jsonActionList.getJSONObject(i));
+            action.apply();
+          }
+          clientString = parseResult.remainingString;
         }
-        
-        clientString = "";
       }
     }
     

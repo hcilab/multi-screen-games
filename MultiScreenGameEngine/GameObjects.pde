@@ -386,11 +386,6 @@ public class GameObjectManager implements IGameObjectManager
   
   @Override public void update(int deltaTime)
   {
-    for (IEvent event : eventManager.getEvents(EventType.APPLY_ACTION))
-    {
-      event.getRequiredActionParameter("action").apply();
-    }
-    
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
