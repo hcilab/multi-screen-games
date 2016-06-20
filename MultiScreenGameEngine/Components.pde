@@ -179,8 +179,7 @@ public class RenderComponent extends Component
   
   @Override public void deserialize(JSONObject jsonRenderComponent)
   {
-    sprites.clear();
-    models.clear();
+    destroy();
     
     JSONArray jsonSprites = jsonRenderComponent.getJSONArray("sprites");
     JSONArray jsonModels = jsonRenderComponent.getJSONArray("models");
@@ -399,7 +398,7 @@ public class TranslateOverTimeComponent extends Component
   private void addSetMovingLeftAction()
   {
     SetMovingLeftAction setMovingLeftAction = new SetMovingLeftAction();
-    setMovingLeftAction.setTarget(gameObject);
+    setMovingLeftAction.setTargetUID(gameObject.getUID());
     setMovingLeftAction.setMovingLeft(movingLeft);
     
     actionBuffer.add(setMovingLeftAction);
@@ -408,7 +407,7 @@ public class TranslateOverTimeComponent extends Component
   private void addSetMovingDownAction()
   {
     SetMovingDownAction setMovingDownAction = new SetMovingDownAction();
-    setMovingDownAction.setTarget(gameObject);
+    setMovingDownAction.setTargetUID(gameObject.getUID());
     setMovingDownAction.setMovingDown(movingDown);
     
     actionBuffer.add(setMovingDownAction);
@@ -417,7 +416,7 @@ public class TranslateOverTimeComponent extends Component
   private void addSetMovingForwardAction()
   {
     SetMovingForwardAction setMovingForwardAction = new SetMovingForwardAction();
-    setMovingForwardAction.setTarget(gameObject);
+    setMovingForwardAction.setTargetUID(gameObject.getUID());
     setMovingForwardAction.setMovingForward(movingForward);
     
     actionBuffer.add(setMovingForwardAction);
@@ -426,7 +425,7 @@ public class TranslateOverTimeComponent extends Component
   private void addTranslateAction(PVector translation)
   {
     TranslateAction translateAction = new TranslateAction();
-    translateAction.setTarget(gameObject);
+    translateAction.setTargetUID(gameObject.getUID());
     translateAction.setTranslation(translation);
     
     actionBuffer.add(translateAction);
@@ -489,7 +488,7 @@ public class RotateOverTimeComponent extends Component
   private void addRotateAction(PVector rotation)
   {
     RotateAction rotateAction = new RotateAction();
-    rotateAction.setTarget(gameObject);
+    rotateAction.setTargetUID(gameObject.getUID());
     rotateAction.setRotation(rotation);
     
     actionBuffer.add(rotateAction);
@@ -672,7 +671,7 @@ public class ScaleOverTimeComponent extends Component
   private void addSetXScalingUpAction()
   {
     SetXScalingUpAction setXScalingUpAction = new SetXScalingUpAction();
-    setXScalingUpAction.setTarget(gameObject);
+    setXScalingUpAction.setTargetUID(gameObject.getUID());
     setXScalingUpAction.setXScalingUp(xScalingUp);
     
     actionBuffer.add(setXScalingUpAction);
@@ -681,7 +680,7 @@ public class ScaleOverTimeComponent extends Component
   private void addSetYScalingUpAction()
   {
     SetYScalingUpAction setYScalingUpAction = new SetYScalingUpAction();
-    setYScalingUpAction.setTarget(gameObject);
+    setYScalingUpAction.setTargetUID(gameObject.getUID());
     setYScalingUpAction.setYScalingUp(yScalingUp);
     
     actionBuffer.add(setYScalingUpAction);
@@ -690,7 +689,7 @@ public class ScaleOverTimeComponent extends Component
   private void addSetZScalingUpAction()
   {
     SetZScalingUpAction setZScalingUpAction = new SetZScalingUpAction();
-    setZScalingUpAction.setTarget(gameObject);
+    setZScalingUpAction.setTargetUID(gameObject.getUID());
     setZScalingUpAction.setZScalingUp(zScalingUp);
     
     actionBuffer.add(setZScalingUpAction);
@@ -699,7 +698,7 @@ public class ScaleOverTimeComponent extends Component
   private void addScaleAction(PVector scale)
   {
     ScaleAction scaleAction = new ScaleAction();
-    scaleAction.setTarget(gameObject);
+    scaleAction.setTargetUID(gameObject.getUID());
     scaleAction.setScale(scale);
     
     actionBuffer.add(scaleAction);

@@ -90,11 +90,8 @@ public class GameState_ChooseClientServerState extends GameState
   }
 }
 
-public class GameState_ClientState extends GameState
+public class GameState_ClientState extends GameState implements IClientCallbackHandler
 {
-  private Client myClient;
-  private String serverString;
-  
   public GameState_ClientState()
   {
     super();
@@ -102,38 +99,65 @@ public class GameState_ClientState extends GameState
   
   @Override public void onEnter()
   {
-    sharedGameObjectManager.fromXML("levels/sample_level.xml");
-    
-    myClient = new Client(mainObject, "131.202.105.28", 5204);
-    println("Client started.");
-    
-    serverString = "";
+    mainClient = new MSClient("127.0.0.1", 5204, this);
+    if (mainClient.connect())
+    {
+      println("Client connected.");
+    }
+    else
+    {
+      println("Client failed to connect.");
+    }
   }
   
   @Override public void update(int deltaTime)
   {
-    if (myClient.active())
+    mainClient.update();
+    synchronized(sharedGameObjectManager)
     {
-      if (myClient.available() > 0)
+      //sharedGameObjectManager.update(deltaTime);
+      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
       {
-        serverString += myClient.readString();
-        JSONArray jsonGameWorld = JSONArray.parse(serverString);
-        if (jsonGameWorld != null)
-        {
-          sharedGameObjectManager.deserialize(jsonGameWorld);
-          for (IAction action : actionBuffer)
-          {
-            action.apply();
-          }
-          serverString = "";
-        }
+        IGameObject gameObject = (IGameObject)entrySet.getValue();
+        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
+      }
+      scene.render();
+      //if (actionBuffer.size() > 0)
+      //{
+      //  writeToServer();
+      //}
+    } //<>//
+  }
+  
+  @Override public void onExit()
+  {
+    mainClient.disconnect();
+    mainClient = null;
+  }
+  
+  @Override public void handleServerMessage(String serverMessage)
+  {
+    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
+    if (jsonGameWorld != null)
+    {
+      synchronized(sharedGameObjectManager)
+      {
+        sharedGameObjectManager.deserialize(jsonGameWorld);
+        //for (IAction action : actionBuffer)
+        //{
+        //  action.apply();
+        //}
       }
     }
-    
-    sharedGameObjectManager.update(deltaTime);
-    scene.render();
-    
-    if (myClient.active())
+    else
+    {
+      println("Failed to parse server message into JSON form: " + serverMessage);
+    }
+  }
+  
+  private void writeToServer()
+  {
+    if (mainClient.isConnected())
     {
       JSONArray jsonActions = new JSONArray();
       for (IAction action : actionBuffer)
@@ -142,79 +166,100 @@ public class GameState_ClientState extends GameState
       }
       if (jsonActions.size() > 0)
       {
-        myClient.write(jsonActions.toString());
+        mainClient.write(jsonActions.toString());
       }
       actionBuffer.clear();
     }
-  }
-  
-  @Override public void onExit()
-  {
-    myClient.stop();
+    else
+    {
+      println("mainClient no longer connected.");
+    }
   }
 }
 
-public class GameState_ServerState extends GameState
+public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
-  private Server myServer;
-  private String clientString;
-  private int timePassed;
-  private final int TIME_TO_SEND;
+  private ServerStateThread serverStateThread;
   
   public GameState_ServerState()
   {
     super();
     
-    TIME_TO_SEND = 0;
+    serverStateThread = new ServerStateThread();
   }
   
   @Override public void onEnter()
   {
     sharedGameObjectManager.fromXML("levels/sample_level.xml");
     
-    myServer = new Server(mainObject, 5204);
-    println("Server started.");
-    
-    clientString = "";
-    timePassed = 0;
+    mainServer = new MSServer(5204, this);
+    if (mainServer.begin())
+    {
+      println("Server started.");
+    }
+    else
+    {
+      println("WARNING: Failed to start server.");
+    }
   }
   
   @Override public void update(int deltaTime)
   {
-    Client client = myServer.available();
-    
-    if (client != null)
+    sharedGameObjectManager.update(deltaTime);
+    scene.render();
+    if (!serverStateThread.isAlive())
     {
-      clientString += client.readString();
-      JSONArray jsonActionList = new JSONArray();
-      while (jsonActionList != null)
-      {
-        JSONArrayParseResult parseResult = parseJSONArrayFromString(clientString);
-        jsonActionList = parseResult.jsonArray;
-        if (jsonActionList != null)
-        {
-          for (int i = 0; i < jsonActionList.size(); i++)
-          {
-            IAction action = deserializeAction(jsonActionList.getJSONObject(i));
-            action.apply();
-          }
-          clientString = parseResult.remainingString;
-        }
-      }
-    }
-    
-    timePassed += deltaTime;
-    if (timePassed > TIME_TO_SEND)
-    {
-      myServer.write(sharedGameObjectManager.serialize().toString());
-      
-      timePassed = 0;
-    }
+      serverStateThread.setMessage(sharedGameObjectManager.serialize().toString());
+      serverStateThread.start();
+    } //<>//
   }
   
   @Override public void onExit()
   {
-    myServer.stop();
+    mainServer.end();
+  }
+  
+  @Override public String getInitializationMessage()
+  {
+    return "";
+  }
+  
+  @Override public void handleClientMessage(String clientMessage)
+  {
+    JSONArray jsonActionList = parseJSONArray(clientMessage);
+    
+    if (jsonActionList != null)
+    {
+      for (int i = 0; i < jsonActionList.size(); i++)
+      {
+        IAction action = deserializeAction(jsonActionList.getJSONObject(i));
+        action.apply();
+      }
+    }
+    else
+    {
+      println("Failed to parse into JSONArray: " + clientMessage);
+    }
+  }
+}
+
+public class ServerStateThread extends Thread
+{
+  private String message;
+  
+  public ServerStateThread()
+  {
+  }
+  
+  public void setMessage(String _message)
+  {
+    message = _message;
+  }
+  
+  @Override public void start()
+  {
+    mainServer.update();
+    mainServer.write(message);
   }
 }
 

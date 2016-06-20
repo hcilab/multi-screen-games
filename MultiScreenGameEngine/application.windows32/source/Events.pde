@@ -12,7 +12,6 @@
 // EventManager constructor a new collection for the type. 
 public enum EventType
 {
-  ACTION,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -26,14 +25,12 @@ public interface IEvent
   public void        addStringParameter(String name, String value);
   public void        addFloatParameter(String name, float value);
   public void        addIntParameter(String name, int value);
-  public void        addActionParameter(String name, IAction value);
   public void        addGameObjectParameter(String name, IGameObject value);
   
   // Use these to get a parameter, but it does not have to have been set by the sender. A default value is required.
   public String      getOptionalStringParameter(String name, String defaultValue);
   public float       getOptionalFloatParameter(String name, float defaultValue);
   public int         getOptionalIntParameter(String name, int defaultValue);
-  public IAction     getOptionalActionParameter(String name, IAction defaultValue);
   public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue);
   
   // Use these to get a parameter that must have been set by the sender. If the sender did not set it, this is an error
@@ -41,7 +38,6 @@ public interface IEvent
   public String      getRequiredStringParameter(String name);
   public float       getRequiredFloatParameter(String name);
   public int         getRequiredIntParameter(String name);
-  public IAction     getRequiredActionParameter(String name);
   public IGameObject getRequiredGameObjectParameter(String name);
 }
 
@@ -71,7 +67,6 @@ public class Event implements IEvent
   private HashMap<String, String> stringParameters;
   private HashMap<String, Float> floatParameters;
   private HashMap<String, Integer> intParameters;
-  private HashMap<String, IAction> actionParameters;
   private HashMap<String, IGameObject> gameObjectParameters;
   
   public Event(EventType _eventType)
@@ -80,7 +75,6 @@ public class Event implements IEvent
     stringParameters = new HashMap<String, String>();
     floatParameters = new HashMap<String, Float>();
     intParameters = new HashMap<String, Integer>();
-    actionParameters = new HashMap<String, IAction>();
     gameObjectParameters = new HashMap<String, IGameObject>();
   }
   
@@ -102,11 +96,6 @@ public class Event implements IEvent
   @Override public void addIntParameter(String name, int value)
   {
     intParameters.put(name, value);
-  }
-  
-  @Override public void addActionParameter(String name, IAction value)
-  {
-    actionParameters.put(name, value);
   }
   
   @Override public void addGameObjectParameter(String name, IGameObject value)
@@ -144,16 +133,6 @@ public class Event implements IEvent
     return defaultValue;
   }
   
-  @Override public IAction getOptionalActionParameter(String name, IAction defaultValue)
-  {
-    if (actionParameters.containsKey(name))
-    {
-      return actionParameters.get(name);
-    }
-    
-    return defaultValue;
-  }
-  
   @Override public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue)
   {
     if (gameObjectParameters.containsKey(name))
@@ -182,12 +161,6 @@ public class Event implements IEvent
     return intParameters.get(name);
   }
   
-  @Override public IAction getRequiredActionParameter(String name)
-  {
-    assert(actionParameters.containsKey(name));
-    return actionParameters.get(name);
-  }
-  
   @Override public IGameObject getRequiredGameObjectParameter(String name)
   {
     assert(gameObjectParameters.containsKey(name));
@@ -208,7 +181,7 @@ public class EventManager implements IEventManager
     queuedEvents = new HashMap<EventType, ArrayList<IEvent>>();
     readyEvents = new HashMap<EventType, ArrayList<IEvent>>();
     
-    addEventTypeToMaps(EventType.ACTION);
+    //addEventTypeToMaps(EventType.ACTION);
   }
   
   private void addEventTypeToMaps(EventType eventType)

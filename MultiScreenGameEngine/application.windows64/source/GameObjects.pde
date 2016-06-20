@@ -67,6 +67,7 @@ interface IGameObjectManager
   public IGameObject            addGameObject(String fileName, PVector translation, PVector rotation, PVector scale);
   public IGameObject            getGameObject(int UID);
   public ArrayList<IGameObject> getGameObjectsByTag(String tag);
+  public HashMap<Integer, IGameObject> getGameObjects();
   public void                   removeGameObject(int UID);
   public void                   clearGameObjects();
 }
@@ -441,6 +442,11 @@ public class GameObjectManager implements IGameObjectManager
     }
     
     return gameObjectsByTag;
+  }
+  
+  @Override public HashMap<Integer, IGameObject> getGameObjects()
+  {
+    return gameObjects;
   }
   
   @Override public void removeGameObject(int UID)

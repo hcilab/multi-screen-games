@@ -134,14 +134,14 @@ public abstract class Action implements IAction
 
 public class TranslateAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private PVector translation;
   
   public TranslateAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     translation = new PVector();
   }
   
@@ -150,14 +150,9 @@ public class TranslateAction extends Action
     return ActionType.TRANSLATE;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
-  }
-  
-  public IGameObject getTarget()
-  {
-    return target;
+    uid = _uid;
   }
   
   public void setTranslation(PVector _translation)
@@ -165,14 +160,24 @@ public class TranslateAction extends Action
     translation = _translation;
   }
   
-  public PVector getTranslation()
-  {
-    return translation;
-  }
-  
   @Override public void apply()
   {
-    target.translate(translation);
+    if (uid == -1)
+    {
+      println("WARNING: TranslateAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: TranslateAction.apply() - target was null.");
+      }
+      else
+      {
+        target.translate(translation);
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -180,7 +185,7 @@ public class TranslateAction extends Action
     JSONObject jsonTranslateAction = new JSONObject();
     
     jsonTranslateAction.setString("ActionType", actionTypeEnumToString(ActionType.TRANSLATE));
-    jsonTranslateAction.setInt("uid", target.getUID());
+    jsonTranslateAction.setInt("uid", uid);
     jsonTranslateAction.setFloat("x", translation.x);
     jsonTranslateAction.setFloat("y", translation.y);
     jsonTranslateAction.setFloat("z", translation.z);
@@ -190,7 +195,7 @@ public class TranslateAction extends Action
   
   @Override public void deserialize(JSONObject jsonTranslateAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonTranslateAction.getInt("uid"));
+    uid = jsonTranslateAction.getInt("uid");
     translation.x = jsonTranslateAction.getFloat("x");
     translation.y = jsonTranslateAction.getFloat("y");
     translation.z = jsonTranslateAction.getFloat("z");
@@ -199,14 +204,14 @@ public class TranslateAction extends Action
 
 public class SetMovingLeftAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private boolean movingLeft;
   
   public SetMovingLeftAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     movingLeft = false;
   }
   
@@ -215,9 +220,9 @@ public class SetMovingLeftAction extends Action
     return ActionType.SET_MOVING_LEFT;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
+    uid = _uid;
   }
   
   public void setMovingLeft(boolean _movingLeft)
@@ -227,7 +232,31 @@ public class SetMovingLeftAction extends Action
   
   @Override public void apply()
   {
-    ((TranslateOverTimeComponent)target.getComponent(ComponentType.TRANSLATE_OVER_TIME)).setMovingLeft(movingLeft);
+    if (uid == -1)
+    {
+      println("WARNING: SetMovingLeftAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: SetMovingLeftAction.apply() - target was null.");
+      }
+      else
+      {
+        IComponent component = target.getComponent(ComponentType.TRANSLATE_OVER_TIME);
+        if (component == null)
+        {
+          println("WARNING: SetMovingLeftAction.apply() - translateOverTimeComponent was null.");
+        }
+        else
+        {
+          TranslateOverTimeComponent translateOverTimeComponent = (TranslateOverTimeComponent)component;
+          translateOverTimeComponent.setMovingLeft(movingLeft);
+        }
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -235,7 +264,7 @@ public class SetMovingLeftAction extends Action
     JSONObject jsonSetMovingLeftAction = new JSONObject();
     
     jsonSetMovingLeftAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_MOVING_LEFT));
-    jsonSetMovingLeftAction.setInt("uid", target.getUID());
+    jsonSetMovingLeftAction.setInt("uid", uid);
     jsonSetMovingLeftAction.setBoolean("movingLeft", movingLeft);
     
     return jsonSetMovingLeftAction;
@@ -243,21 +272,21 @@ public class SetMovingLeftAction extends Action
   
   @Override public void deserialize(JSONObject jsonSetMovingLeftAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetMovingLeftAction.getInt("uid"));
+    uid = jsonSetMovingLeftAction.getInt("uid");
     movingLeft = jsonSetMovingLeftAction.getBoolean("movingLeft");
   }
 }
 
 public class SetMovingDownAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private boolean movingDown;
   
   public SetMovingDownAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     movingDown = false;
   }
   
@@ -266,9 +295,9 @@ public class SetMovingDownAction extends Action
     return ActionType.SET_MOVING_DOWN;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
+    uid = _uid;
   }
   
   public void setMovingDown(boolean _movingDown)
@@ -278,7 +307,31 @@ public class SetMovingDownAction extends Action
   
   @Override public void apply()
   {
-    ((TranslateOverTimeComponent)target.getComponent(ComponentType.TRANSLATE_OVER_TIME)).setMovingDown(movingDown);
+    if (uid == -1)
+    {
+      println("WARNING: SetMovingDownAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: SetMovingDownAction.apply() - target was null.");
+      }
+      else
+      {
+        IComponent component = target.getComponent(ComponentType.TRANSLATE_OVER_TIME);
+        if (component == null)
+        {
+          println("WARNING: SetMovingDownAction.apply() - TranslateOverTimeComponent was null.");
+        }
+        else
+        {
+          TranslateOverTimeComponent translateOverTimeComponent = (TranslateOverTimeComponent)component;
+          translateOverTimeComponent.setMovingDown(movingDown);
+        }
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -286,7 +339,7 @@ public class SetMovingDownAction extends Action
     JSONObject jsonSetMovingDownAction = new JSONObject();
     
     jsonSetMovingDownAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_MOVING_DOWN));
-    jsonSetMovingDownAction.setInt("uid", target.getUID());
+    jsonSetMovingDownAction.setInt("uid", uid);
     jsonSetMovingDownAction.setBoolean("movingDown", movingDown);
     
     return jsonSetMovingDownAction;
@@ -294,21 +347,21 @@ public class SetMovingDownAction extends Action
   
   @Override public void deserialize(JSONObject jsonSetMovingDownAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetMovingDownAction.getInt("uid"));
+    uid = jsonSetMovingDownAction.getInt("uid");
     movingDown = jsonSetMovingDownAction.getBoolean("movingDown");
   }
 }
 
 public class SetMovingForwardAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private boolean movingForward;
   
   public SetMovingForwardAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     movingForward = false;
   }
   
@@ -317,9 +370,9 @@ public class SetMovingForwardAction extends Action
     return ActionType.SET_MOVING_FORWARD;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
+    uid = _uid;
   }
   
   public void setMovingForward(boolean _movingForward)
@@ -329,7 +382,31 @@ public class SetMovingForwardAction extends Action
   
   @Override public void apply()
   {
-    ((TranslateOverTimeComponent)target.getComponent(ComponentType.TRANSLATE_OVER_TIME)).setMovingForward(movingForward);
+    if (uid == -1)
+    {
+      println("WARNING: SetMovingForwardAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING - SetMovingForwardAction.apply() - target was null.");
+      }
+      else
+      {
+        IComponent component = target.getComponent(ComponentType.TRANSLATE_OVER_TIME);
+        if (component == null)
+        {
+          println("WARNING - SetMovingForwardAction.apply() - TranslateOverTimeComponent was null.");
+        }
+        else
+        {
+          TranslateOverTimeComponent translateOverTimeComponent = (TranslateOverTimeComponent)component;
+          translateOverTimeComponent.setMovingForward(movingForward);
+        }
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -337,7 +414,7 @@ public class SetMovingForwardAction extends Action
     JSONObject jsonSetMovingForwardAction = new JSONObject();
     
     jsonSetMovingForwardAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_MOVING_FORWARD));
-    jsonSetMovingForwardAction.setInt("uid", target.getUID());
+    jsonSetMovingForwardAction.setInt("uid", uid);
     jsonSetMovingForwardAction.setBoolean("movingForward", movingForward);
     
     return jsonSetMovingForwardAction;
@@ -345,21 +422,21 @@ public class SetMovingForwardAction extends Action
   
   @Override public void deserialize(JSONObject jsonSetMovingForwardAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetMovingForwardAction.getInt("uid"));
+    uid = jsonSetMovingForwardAction.getInt("uid");
     movingForward = jsonSetMovingForwardAction.getBoolean("movingForward");
   }
 }
 
 public class RotateAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private PVector rotation;
   
   public RotateAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     rotation = new PVector();
   }
   
@@ -368,14 +445,9 @@ public class RotateAction extends Action
     return ActionType.ROTATE;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
-  }
-  
-  public IGameObject getTarget()
-  {
-    return target;
+    uid = _uid;
   }
   
   public void setRotation(PVector _rotation)
@@ -383,14 +455,24 @@ public class RotateAction extends Action
     rotation = _rotation;
   }
   
-  public PVector getRotation()
-  {
-    return rotation;
-  }
-  
   @Override public void apply()
   {
-    target.rotate(rotation);
+    if (uid == -1)
+    {
+      println("WARNING: RotateOverTimeAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: RotateOverTimeAction.apply() - target was null");
+      }
+      else
+      {
+        target.rotate(rotation);
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -398,7 +480,7 @@ public class RotateAction extends Action
     JSONObject jsonRotateAction = new JSONObject();
     
     jsonRotateAction.setString("ActionType", actionTypeEnumToString(ActionType.ROTATE));
-    jsonRotateAction.setInt("uid", target.getUID());
+    jsonRotateAction.setInt("uid", uid);
     jsonRotateAction.setFloat("x", rotation.x);
     jsonRotateAction.setFloat("y", rotation.y);
     jsonRotateAction.setFloat("z", rotation.z);
@@ -408,7 +490,7 @@ public class RotateAction extends Action
   
   @Override public void deserialize(JSONObject jsonRotateAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonRotateAction.getInt("uid"));
+    uid = jsonRotateAction.getInt("uid");
     rotation.x = jsonRotateAction.getFloat("x");
     rotation.y = jsonRotateAction.getFloat("y");
     rotation.z = jsonRotateAction.getFloat("z");
@@ -417,14 +499,14 @@ public class RotateAction extends Action
 
 public class ScaleAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private PVector scale;
   
   public ScaleAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     scale = new PVector();
   }
   
@@ -433,14 +515,9 @@ public class ScaleAction extends Action
     return ActionType.SCALE;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
-  }
-  
-  public IGameObject getTarget()
-  {
-    return target;
+    uid = _uid;
   }
   
   public void setScale(PVector _scale)
@@ -448,14 +525,24 @@ public class ScaleAction extends Action
     scale = _scale;
   }
   
-  public PVector getScale()
-  {
-    return scale;
-  }
-  
   @Override public void apply()
   {
-    target.scale(scale);
+    if (uid == -1)
+    {
+      println("WARNING: ScaleOverTimeAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: ScaleOverTimeAction.apply() - target was null.");
+      }
+      else
+      {
+        target.scale(scale);
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -463,7 +550,7 @@ public class ScaleAction extends Action
     JSONObject jsonScaleAction = new JSONObject();
     
     jsonScaleAction.setString("ActionType", actionTypeEnumToString(ActionType.SCALE));
-    jsonScaleAction.setInt("uid", target.getUID());
+    jsonScaleAction.setInt("uid", uid);
     jsonScaleAction.setFloat("x", scale.x);
     jsonScaleAction.setFloat("y", scale.y);
     jsonScaleAction.setFloat("z", scale.z);
@@ -473,7 +560,7 @@ public class ScaleAction extends Action
   
   @Override public void deserialize(JSONObject jsonScaleAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonScaleAction.getInt("uid"));
+    uid = jsonScaleAction.getInt("uid");
     scale.x = jsonScaleAction.getFloat("x");
     scale.y = jsonScaleAction.getFloat("y");
     scale.z = jsonScaleAction.getFloat("z");
@@ -482,14 +569,14 @@ public class ScaleAction extends Action
 
 public class SetXScalingUpAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private boolean xScalingUp;
   
   public SetXScalingUpAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     xScalingUp = false;
   }
   
@@ -498,9 +585,9 @@ public class SetXScalingUpAction extends Action
     return ActionType.SET_X_SCALING_UP;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
+    uid = _uid;
   }
   
   public void setXScalingUp(boolean _xScalingUp)
@@ -510,7 +597,31 @@ public class SetXScalingUpAction extends Action
   
   @Override public void apply()
   {
-    ((ScaleOverTimeComponent)target.getComponent(ComponentType.SCALE_OVER_TIME)).setXScalingUp(xScalingUp);
+    if (uid == -1)
+    {
+      println("WARNING: SetXScalingUpAction.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: SetXScalingUpAction.apply() - target was null");
+      }
+      else
+      {
+        IComponent component = target.getComponent(ComponentType.SCALE_OVER_TIME);
+        if (component == null)
+        {
+          println("WARNING: SetXScalingUpAction.apply() - ScaleOverTimeComponent was null");
+        }
+        else
+        {
+          ScaleOverTimeComponent scaleOverTimeComponent = (ScaleOverTimeComponent)component;
+          scaleOverTimeComponent.setXScalingUp(xScalingUp);
+        }
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -518,7 +629,7 @@ public class SetXScalingUpAction extends Action
     JSONObject jsonSetXScalingUpAction = new JSONObject();
     
     jsonSetXScalingUpAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_X_SCALING_UP));
-    jsonSetXScalingUpAction.setInt("uid", target.getUID());
+    jsonSetXScalingUpAction.setInt("uid", uid);
     jsonSetXScalingUpAction.setBoolean("xScalingUp", xScalingUp);
     
     return jsonSetXScalingUpAction;
@@ -526,21 +637,21 @@ public class SetXScalingUpAction extends Action
   
   @Override public void deserialize(JSONObject jsonSetXScalingUpAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetXScalingUpAction.getInt("uid"));
+    uid = jsonSetXScalingUpAction.getInt("uid");
     xScalingUp = jsonSetXScalingUpAction.getBoolean("xScalingUp");
   }
 }
 
 public class SetYScalingUpAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private boolean yScalingUp;
   
   public SetYScalingUpAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     yScalingUp = false;
   }
   
@@ -549,9 +660,9 @@ public class SetYScalingUpAction extends Action
     return ActionType.SET_Y_SCALING_UP;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
+    uid = _uid;
   }
   
   public void setYScalingUp(boolean _yScalingUp)
@@ -561,7 +672,31 @@ public class SetYScalingUpAction extends Action
   
   @Override public void apply()
   {
-    ((ScaleOverTimeComponent)target.getComponent(ComponentType.SCALE_OVER_TIME)).setYScalingUp(yScalingUp);
+    if (uid == -1)
+    {
+      println("WARNING: SetYScalingUp.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: SetYScalingUp.apply() - target was null");
+      }
+      else
+      {
+        IComponent component = target.getComponent(ComponentType.SCALE_OVER_TIME);
+        if (component == null)
+        {
+          println("WARNING: SetYScalingUp.apply() - ScaleOverTimeComponent was null");
+        }
+        else
+        {
+          ScaleOverTimeComponent scaleOverTimeComponent = (ScaleOverTimeComponent)component;
+          scaleOverTimeComponent.setYScalingUp(yScalingUp);
+        }
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -569,7 +704,7 @@ public class SetYScalingUpAction extends Action
     JSONObject jsonSetYScalingUpAction = new JSONObject();
     
     jsonSetYScalingUpAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_Y_SCALING_UP));
-    jsonSetYScalingUpAction.setInt("uid", target.getUID());
+    jsonSetYScalingUpAction.setInt("uid", uid);
     jsonSetYScalingUpAction.setBoolean("yScalingUp", yScalingUp);
     
     return jsonSetYScalingUpAction;
@@ -577,21 +712,21 @@ public class SetYScalingUpAction extends Action
   
   @Override public void deserialize(JSONObject jsonSetYScalingUpAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetYScalingUpAction.getInt("uid"));
+    uid = jsonSetYScalingUpAction.getInt("uid");
     yScalingUp = jsonSetYScalingUpAction.getBoolean("yScalingUp");
   }
 }
 
 public class SetZScalingUpAction extends Action
 {
-  private IGameObject target;
+  private int uid;
   private boolean zScalingUp;
   
   public SetZScalingUpAction()
   {
     super();
     
-    target = null;
+    uid = -1;
     zScalingUp = false;
   }
   
@@ -600,9 +735,9 @@ public class SetZScalingUpAction extends Action
     return ActionType.SET_Y_SCALING_UP;
   }
   
-  public void setTarget(IGameObject _target)
+  public void setTargetUID(int _uid)
   {
-    target = _target;
+    uid = _uid;
   }
   
   public void setZScalingUp(boolean _zScalingUp)
@@ -612,7 +747,31 @@ public class SetZScalingUpAction extends Action
   
   @Override public void apply()
   {
-    ((ScaleOverTimeComponent)target.getComponent(ComponentType.SCALE_OVER_TIME)).setZScalingUp(zScalingUp);
+    if (uid == -1)
+    {
+      println("WARNING: SetZScalingUp.apply() - target uid was not set.");
+    }
+    else
+    {
+      IGameObject target = gameStateController.getSharedGameObjectManager().getGameObject(uid);
+      if (target == null)
+      {
+        println("WARNING: SetZScalingUp.apply() - target was null");
+      }
+      else
+      {
+        IComponent component = target.getComponent(ComponentType.SCALE_OVER_TIME);
+        if (component == null)
+        {
+          println("WARNING: SetZScalingUp.apply() - ScaleOverTimeComponent was null.");
+        }
+        else
+        {
+          ScaleOverTimeComponent scaleOverTimeComponent = (ScaleOverTimeComponent)component;
+          scaleOverTimeComponent.setZScalingUp(zScalingUp);
+        }
+      }
+    }
   }
   
   @Override public JSONObject serialize()
@@ -620,7 +779,7 @@ public class SetZScalingUpAction extends Action
     JSONObject jsonSetZScalingUpAction = new JSONObject();
     
     jsonSetZScalingUpAction.setString("ActionType", actionTypeEnumToString(ActionType.SET_Z_SCALING_UP));
-    jsonSetZScalingUpAction.setInt("uid", target.getUID());
+    jsonSetZScalingUpAction.setInt("uid", uid);
     jsonSetZScalingUpAction.setBoolean("zScalingUp", zScalingUp);
     
     return jsonSetZScalingUpAction;
@@ -628,7 +787,7 @@ public class SetZScalingUpAction extends Action
   
   @Override public void deserialize(JSONObject jsonSetZScalingUpAction)
   {
-    target = gameStateController.getSharedGameObjectManager().getGameObject(jsonSetZScalingUpAction.getInt("uid"));
+    uid = jsonSetZScalingUpAction.getInt("uid");
     zScalingUp = jsonSetZScalingUpAction.getBoolean("zScalingUp");
   }
 }
