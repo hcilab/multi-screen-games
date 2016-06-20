@@ -486,6 +486,25 @@ public class Sprite implements ISprite
   
   @Override public void render()
   {
+    pushMatrix();
+    
+    translate(translation.x, translation.y, translation.z);
+    rotateZ(rotation);
+    scale(scale.x, scale.y, scale.z);
+    
+    //==============================================
+    // CHANGE HOW SPRITES ARE RENDERED HERE
+    fill(255);
+    
+    beginShape();
+    vertex(-50.0f, -50.0f, 0.0f);
+    vertex(50.0f, -50.0f, 0.0f);
+    vertex(-50.0f, 50.0f, 0.0f);
+    //vertex(50.0f, 50.0f, 0.0f);
+    endShape();
+    //==============================================
+    
+    popMatrix();
   }
   
   @Override public JSONObject serialize()
