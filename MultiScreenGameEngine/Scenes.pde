@@ -119,9 +119,9 @@ public interface IScene
 
 public abstract class Camera implements ICamera
 {
-  private PVector position;
-  private PVector target;
-  private PVector up;
+  protected PVector position;
+  protected PVector target;
+  protected PVector up;
   
   public Camera()
   {
@@ -162,7 +162,7 @@ public abstract class Camera implements ICamera
   {
     position = new PVector(0.0f, 0.0f, 10.0f);
     target = new PVector(0.0f, 0.0f, 0.0f);
-    up = new PVector(0.0f, -1.0f, 0.0f);
+    up = new PVector(0.0f, 1.0f, 0.0f);
   }
   
   @Override public void apply()
@@ -495,7 +495,7 @@ public class Sprite implements ISprite
     //==============================================
     // CHANGE HOW SPRITES ARE RENDERED HERE
     fill(255);
-    
+        
     beginShape();
     vertex(-50.0f, -50.0f, 0.0f);
     vertex(50.0f, -50.0f, 0.0f);

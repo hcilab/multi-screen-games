@@ -16,8 +16,8 @@
 		
 		movingForward="false"
 		zUnitsPerSecond="30.0"
-		forwardLimit="-200.0"
-		backwardLimit="-100.0"
+		forwardLimit="-100.0"
+		backwardLimit="100.0"
 	/>
 	
 	<RotateOverTime 

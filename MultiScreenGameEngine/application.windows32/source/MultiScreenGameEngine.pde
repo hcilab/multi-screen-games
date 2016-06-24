@@ -7,15 +7,16 @@
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Map;
-import java.awt.Robot;
-import java.awt.AWTException;
-import java.awt.MouseInfo;
+
 import processing.net.Client;
 import processing.net.Server;
 
+import java.awt.Robot;
+import java.awt.AWTException;
+import java.awt.MouseInfo;
+
 MultiScreenGameEngine mainObject;
 IEventManager eventManager;
-ArrayList<IAction> actionBuffer;
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IScene scene;
@@ -30,7 +31,6 @@ void setup()
   
   mainObject = this;
   eventManager = new EventManager();
-  actionBuffer = new ArrayList<IAction>();
   textureManager = new TextureManager();
   materialLibManager = new MaterialLibManager(); 
   scene = new Scene();
@@ -52,7 +52,7 @@ void draw()
   //{
   //  deltaTime = 32;
   //}
-  println(deltaTime);
+  //println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
   //if (robot != null)

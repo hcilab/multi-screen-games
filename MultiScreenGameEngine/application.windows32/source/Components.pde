@@ -11,6 +11,7 @@
 public enum ComponentType
 {
   RENDER,
+  PERSPECTIVE_CAMERA,
   TRANSLATE_OVER_TIME,
   ROTATE_OVER_TIME,
   SCALE_OVER_TIME,
@@ -39,6 +40,9 @@ public String componentTypeEnumToString(ComponentType componentType)
     case RENDER:
       return "render";
       
+    case PERSPECTIVE_CAMERA:
+      return "perspectiveCamera";
+      
     case TRANSLATE_OVER_TIME:
       return "translateOverTime";
       
@@ -61,6 +65,9 @@ public ComponentType componentTypeStringToEnum(String componentType)
   {
     case "render":
       return ComponentType.RENDER;
+      
+    case "perspectiveCamera":
+      return ComponentType.PERSPECTIVE_CAMERA;
       
     case "translateOverTime":
       return ComponentType.TRANSLATE_OVER_TIME;
@@ -95,10 +102,19 @@ public abstract class Component implements IComponent
   {
   }
   
+  @Override public JSONObject serialize()
+  {
+    return new JSONObject();
+  }
+  
+  @Override public void deserialize(JSONObject jsonComponent)
+  {
+  }
+  
   // There is no need to change this in subclasses.
   @Override final public IGameObject getGameObject()
   {
-    return gameObject;
+    return gameObject; 
   }
   
   @Override public void update(int deltaTime)
@@ -219,6 +235,82 @@ public class RenderComponent extends Component
       model.setRotation(gameObject.getRotation());
       model.setScale(gameObject.getScale());
     }
+  }
+}
+
+
+public class PerspectiveCameraComponent extends Component
+{
+  private IPerspectiveCamera camera;
+  
+  public PerspectiveCameraComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+    
+    camera = new PerspectiveCamera();
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    println("parsing perspective camera");
+    for (XML xmlParameter : xmlComponent.getChildren())
+    {
+      if (xmlParameter.getName().equals("Position"))
+      {
+        PVector position = new PVector();
+        position.x = xmlParameter.getFloat("x");
+        position.y = xmlParameter.getFloat("y");
+        position.z = xmlParameter.getFloat("z");
+        camera.setPosition(position);
+      }
+      else if (xmlParameter.getName().equals("Target"))
+      {
+        PVector target = new PVector();
+        target.x = xmlParameter.getFloat("x");
+        target.y = xmlParameter.getFloat("y");
+        target.z = xmlParameter.getFloat("z");
+        camera.setTarget(target);
+      }
+      else if (xmlParameter.getName().equals("Up"))
+      {
+        PVector up = new PVector();
+        up.x = xmlParameter.getFloat("x");
+        up.y = xmlParameter.getFloat("y");
+        up.z = xmlParameter.getFloat("z");
+        camera.setUp(up);
+      }
+      else if (xmlParameter.getName().equals("FieldOfView"))
+      {
+        camera.setFieldOfView(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("AspectRatio"))
+      {
+        camera.setAspectRatio(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Near"))
+      {
+        camera.setNear(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Far"))
+      {
+        camera.setFar(xmlParameter.getFloat("value"));
+      }
+    }
+    
+    scene.setPerspectiveCamera(camera);
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.PERSPECTIVE_CAMERA;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
   }
 }
 
@@ -401,7 +493,7 @@ public class TranslateOverTimeComponent extends Component
     setMovingLeftAction.setTargetUID(gameObject.getUID());
     setMovingLeftAction.setMovingLeft(movingLeft);
     
-    actionBuffer.add(setMovingLeftAction);
+    //actionBuffer.add(setMovingLeftAction);
   }
   
   private void addSetMovingDownAction()
@@ -410,7 +502,7 @@ public class TranslateOverTimeComponent extends Component
     setMovingDownAction.setTargetUID(gameObject.getUID());
     setMovingDownAction.setMovingDown(movingDown);
     
-    actionBuffer.add(setMovingDownAction);
+    //actionBuffer.add(setMovingDownAction);
   }
   
   private void addSetMovingForwardAction()
@@ -419,7 +511,7 @@ public class TranslateOverTimeComponent extends Component
     setMovingForwardAction.setTargetUID(gameObject.getUID());
     setMovingForwardAction.setMovingForward(movingForward);
     
-    actionBuffer.add(setMovingForwardAction);
+    //actionBuffer.add(setMovingForwardAction);
   }
   
   private void addTranslateAction(PVector translation)
@@ -428,7 +520,7 @@ public class TranslateOverTimeComponent extends Component
     translateAction.setTargetUID(gameObject.getUID());
     translateAction.setTranslation(translation);
     
-    actionBuffer.add(translateAction);
+    //actionBuffer.add(translateAction);
   }
 }
 
@@ -491,7 +583,7 @@ public class RotateOverTimeComponent extends Component
     rotateAction.setTargetUID(gameObject.getUID());
     rotateAction.setRotation(rotation);
     
-    actionBuffer.add(rotateAction);
+    //actionBuffer.add(rotateAction);
   }
 }
 
@@ -674,7 +766,7 @@ public class ScaleOverTimeComponent extends Component
     setXScalingUpAction.setTargetUID(gameObject.getUID());
     setXScalingUpAction.setXScalingUp(xScalingUp);
     
-    actionBuffer.add(setXScalingUpAction);
+    //actionBuffer.add(setXScalingUpAction);
   }
   
   private void addSetYScalingUpAction()
@@ -683,7 +775,7 @@ public class ScaleOverTimeComponent extends Component
     setYScalingUpAction.setTargetUID(gameObject.getUID());
     setYScalingUpAction.setYScalingUp(yScalingUp);
     
-    actionBuffer.add(setYScalingUpAction);
+    //actionBuffer.add(setYScalingUpAction);
   }
   
   private void addSetZScalingUpAction()
@@ -692,7 +784,7 @@ public class ScaleOverTimeComponent extends Component
     setZScalingUpAction.setTargetUID(gameObject.getUID());
     setZScalingUpAction.setZScalingUp(zScalingUp);
     
-    actionBuffer.add(setZScalingUpAction);
+    //actionBuffer.add(setZScalingUpAction);
   }
   
   private void addScaleAction(PVector scale)
@@ -701,7 +793,7 @@ public class ScaleOverTimeComponent extends Component
     scaleAction.setTargetUID(gameObject.getUID());
     scaleAction.setScale(scale);
     
-    actionBuffer.add(scaleAction);
+    //actionBuffer.add(scaleAction);
   }
 }
 
@@ -715,6 +807,10 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
   {
     case "Render":
       component = new RenderComponent(gameObject);
+      break;
+      
+    case "PerspectiveCamera":
+      component = new PerspectiveCameraComponent(gameObject);
       break;
       
     case "TranslateOverTime":
@@ -748,6 +844,10 @@ public IComponent deserializeComponent(GameObject gameObject, JSONObject jsonCom
   {
     case RENDER:
       component = new RenderComponent(gameObject);
+      break;
+      
+    case PERSPECTIVE_CAMERA:
+      component = new PerspectiveCameraComponent(gameObject);
       break;
       
     case TRANSLATE_OVER_TIME:

@@ -78,119 +78,36 @@ public class GameState_ChooseClientServerState extends GameState
       {
         gameStateController.pushState(new GameState_ServerState());
       }
-      else if (key == 'c')
+      else if (key == '1')
       {
-        gameStateController.pushState(new GameState_ClientState());
+        gameStateController.pushState(new GameState_ClientState1());
+      }
+      else if (key == '2')
+      {
+        gameStateController.pushState(new GameState_ClientState2());
       }
     }
   }
   
   @Override public void onExit()
   {
-  }
-}
-
-public class GameState_ClientState extends GameState implements IClientCallbackHandler
-{
-  public GameState_ClientState()
-  {
-    super();
-  }
-  
-  @Override public void onEnter()
-  {
-    mainClient = new MSClient("127.0.0.1", 5204, this);
-    if (mainClient.connect())
-    {
-      println("Client connected.");
-    }
-    else
-    {
-      println("Client failed to connect.");
-    }
-  }
-  
-  @Override public void update(int deltaTime)
-  {
-    mainClient.update();
-    synchronized(sharedGameObjectManager)
-    {
-      //sharedGameObjectManager.update(deltaTime);
-      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
-      {
-        IGameObject gameObject = (IGameObject)entrySet.getValue();
-        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
-      }
-      scene.render();
-      //if (actionBuffer.size() > 0)
-      //{
-      //  writeToServer();
-      //}
-    } //<>//
-  }
-  
-  @Override public void onExit()
-  {
-    mainClient.disconnect();
-    mainClient = null;
-  }
-  
-  @Override public void handleServerMessage(String serverMessage)
-  {
-    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
-    if (jsonGameWorld != null)
-    {
-      synchronized(sharedGameObjectManager)
-      {
-        sharedGameObjectManager.deserialize(jsonGameWorld);
-        //for (IAction action : actionBuffer)
-        //{
-        //  action.apply();
-        //}
-      }
-    }
-    else
-    {
-      println("Failed to parse server message into JSON form: " + serverMessage);
-    }
-  }
-  
-  private void writeToServer()
-  {
-    if (mainClient.isConnected())
-    {
-      JSONArray jsonActions = new JSONArray();
-      for (IAction action : actionBuffer)
-      {
-        jsonActions.append(action.serialize());
-      }
-      if (jsonActions.size() > 0)
-      {
-        mainClient.write(jsonActions.toString());
-      }
-      actionBuffer.clear();
-    }
-    else
-    {
-      println("mainClient no longer connected.");
-    }
   }
 }
 
 public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
-  private ServerStateThread serverStateThread;
+  private int waitTime;
   
   public GameState_ServerState()
   {
     super();
     
-    serverStateThread = new ServerStateThread();
+    waitTime = 1000;
   }
   
   @Override public void onEnter()
   {
-    sharedGameObjectManager.fromXML("levels/sample_level.xml");
+    sharedGameObjectManager.fromXML("levels/shared_level.xml");
     
     mainServer = new MSServer(5204, this);
     if (mainServer.begin())
@@ -207,11 +124,13 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   {
     sharedGameObjectManager.update(deltaTime);
     scene.render();
-    if (!serverStateThread.isAlive())
+    waitTime -= deltaTime;
+    if (waitTime <= 0)
     {
-      serverStateThread.setMessage(sharedGameObjectManager.serialize().toString());
-      serverStateThread.start();
-    } //<>//
+      mainServer.update();
+      mainServer.write(sharedGameObjectManager.serialize().toString());
+      waitTime += 1000;
+    }
   }
   
   @Override public void onExit()
@@ -243,23 +162,121 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   }
 }
 
-public class ServerStateThread extends Thread
+public class GameState_ClientState1 extends GameState implements IClientCallbackHandler
 {
-  private String message;
-  
-  public ServerStateThread()
+  public GameState_ClientState1()
   {
+    super();
   }
   
-  public void setMessage(String _message)
+  @Override public void onEnter()
   {
-    message = _message;
+    localGameObjectManager.fromXML("levels/client_level_1.xml");
+    
+    mainClient = new MSClient("127.0.0.1", 5204, this);
+    if (mainClient.connect())
+    {
+      println("Client connected.");
+    }
+    else
+    {
+      println("Client failed to connect.");
+    }
   }
   
-  @Override public void start()
+  @Override public void update(int deltaTime)
   {
-    mainServer.update();
-    mainServer.write(message);
+    mainClient.update();
+    synchronized(sharedGameObjectManager)
+    {
+      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
+      {
+        IGameObject gameObject = (IGameObject)entrySet.getValue();
+        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
+      }
+      scene.render();
+    }
+  }
+  
+  @Override public void onExit()
+  {
+    mainClient.disconnect();
+    mainClient = null;
+  }
+  
+  @Override public void handleServerMessage(String serverMessage)
+  {
+    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
+    if (jsonGameWorld != null)
+    {
+      synchronized(sharedGameObjectManager)
+      {
+        sharedGameObjectManager.deserialize(jsonGameWorld);
+      }
+    }
+    else
+    {
+      println("Failed to parse server message into JSON form: " + serverMessage);
+    }
+  }
+}
+
+public class GameState_ClientState2 extends GameState implements IClientCallbackHandler
+{
+  public GameState_ClientState2()
+  {
+    super();
+  }
+  
+  @Override public void onEnter()
+  {
+    localGameObjectManager.fromXML("levels/client_level_2.xml");
+    
+    mainClient = new MSClient("127.0.0.1", 5204, this);
+    if (mainClient.connect())
+    {
+      println("Client connected.");
+    }
+    else
+    {
+      println("Client failed to connect.");
+    }
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+    mainClient.update();
+    synchronized(sharedGameObjectManager)
+    {
+      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
+      {
+        IGameObject gameObject = (IGameObject)entrySet.getValue();
+        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
+      }
+      scene.render();
+    }
+  }
+  
+  @Override public void onExit()
+  {
+    mainClient.disconnect();
+    mainClient = null;
+  }
+  
+  @Override public void handleServerMessage(String serverMessage)
+  {
+    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
+    if (jsonGameWorld != null)
+    {
+      synchronized(sharedGameObjectManager)
+      {
+        sharedGameObjectManager.deserialize(jsonGameWorld);
+      }
+    }
+    else
+    {
+      println("Failed to parse server message into JSON form: " + serverMessage);
+    }
   }
 }
 

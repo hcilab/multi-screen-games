@@ -6,11 +6,11 @@ import processing.opengl.*;
 import java.util.ArrayList; 
 import java.util.LinkedList; 
 import java.util.Map; 
+import processing.net.Client; 
+import processing.net.Server; 
 import java.awt.Robot; 
 import java.awt.AWTException; 
 import java.awt.MouseInfo; 
-import processing.net.Client; 
-import processing.net.Server; 
 
 import java.util.HashMap; 
 import java.util.ArrayList; 
@@ -38,9 +38,10 @@ public class MultiScreenGameEngine extends PApplet {
 
 
 
+
+
 MultiScreenGameEngine mainObject;
 IEventManager eventManager;
-ArrayList<IAction> actionBuffer;
 ITextureManager textureManager;
 IMaterialLibManager materialLibManager;
 IScene scene;
@@ -55,7 +56,6 @@ public void setup()
   
   mainObject = this;
   eventManager = new EventManager();
-  actionBuffer = new ArrayList<IAction>();
   textureManager = new TextureManager();
   materialLibManager = new MaterialLibManager(); 
   scene = new Scene();
@@ -77,7 +77,7 @@ public void draw()
   //{
   //  deltaTime = 32;
   //}
-  println(deltaTime);
+  //println(deltaTime);
   
   //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
   //if (robot != null)
@@ -977,6 +977,7 @@ public IAction deserializeAction(JSONObject jsonAction)
 public enum ComponentType
 {
   RENDER,
+  PERSPECTIVE_CAMERA,
   TRANSLATE_OVER_TIME,
   ROTATE_OVER_TIME,
   SCALE_OVER_TIME,
@@ -1005,6 +1006,9 @@ public String componentTypeEnumToString(ComponentType componentType)
     case RENDER:
       return "render";
       
+    case PERSPECTIVE_CAMERA:
+      return "perspectiveCamera";
+      
     case TRANSLATE_OVER_TIME:
       return "translateOverTime";
       
@@ -1027,6 +1031,9 @@ public ComponentType componentTypeStringToEnum(String componentType)
   {
     case "render":
       return ComponentType.RENDER;
+      
+    case "perspectiveCamera":
+      return ComponentType.PERSPECTIVE_CAMERA;
       
     case "translateOverTime":
       return ComponentType.TRANSLATE_OVER_TIME;
@@ -1061,10 +1068,19 @@ public abstract class Component implements IComponent
   {
   }
   
+  @Override public JSONObject serialize()
+  {
+    return new JSONObject();
+  }
+  
+  @Override public void deserialize(JSONObject jsonComponent)
+  {
+  }
+  
   // There is no need to change this in subclasses.
   @Override final public IGameObject getGameObject()
   {
-    return gameObject;
+    return gameObject; 
   }
   
   @Override public void update(int deltaTime)
@@ -1185,6 +1201,82 @@ public class RenderComponent extends Component
       model.setRotation(gameObject.getRotation());
       model.setScale(gameObject.getScale());
     }
+  }
+}
+
+
+public class PerspectiveCameraComponent extends Component
+{
+  private IPerspectiveCamera camera;
+  
+  public PerspectiveCameraComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+    
+    camera = new PerspectiveCamera();
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    println("parsing perspective camera");
+    for (XML xmlParameter : xmlComponent.getChildren())
+    {
+      if (xmlParameter.getName().equals("Position"))
+      {
+        PVector position = new PVector();
+        position.x = xmlParameter.getFloat("x");
+        position.y = xmlParameter.getFloat("y");
+        position.z = xmlParameter.getFloat("z");
+        camera.setPosition(position);
+      }
+      else if (xmlParameter.getName().equals("Target"))
+      {
+        PVector target = new PVector();
+        target.x = xmlParameter.getFloat("x");
+        target.y = xmlParameter.getFloat("y");
+        target.z = xmlParameter.getFloat("z");
+        camera.setTarget(target);
+      }
+      else if (xmlParameter.getName().equals("Up"))
+      {
+        PVector up = new PVector();
+        up.x = xmlParameter.getFloat("x");
+        up.y = xmlParameter.getFloat("y");
+        up.z = xmlParameter.getFloat("z");
+        camera.setUp(up);
+      }
+      else if (xmlParameter.getName().equals("FieldOfView"))
+      {
+        camera.setFieldOfView(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("AspectRatio"))
+      {
+        camera.setAspectRatio(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Near"))
+      {
+        camera.setNear(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Far"))
+      {
+        camera.setFar(xmlParameter.getFloat("value"));
+      }
+    }
+    
+    scene.setPerspectiveCamera(camera);
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.PERSPECTIVE_CAMERA;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
   }
 }
 
@@ -1367,7 +1459,7 @@ public class TranslateOverTimeComponent extends Component
     setMovingLeftAction.setTargetUID(gameObject.getUID());
     setMovingLeftAction.setMovingLeft(movingLeft);
     
-    actionBuffer.add(setMovingLeftAction);
+    //actionBuffer.add(setMovingLeftAction);
   }
   
   private void addSetMovingDownAction()
@@ -1376,7 +1468,7 @@ public class TranslateOverTimeComponent extends Component
     setMovingDownAction.setTargetUID(gameObject.getUID());
     setMovingDownAction.setMovingDown(movingDown);
     
-    actionBuffer.add(setMovingDownAction);
+    //actionBuffer.add(setMovingDownAction);
   }
   
   private void addSetMovingForwardAction()
@@ -1385,7 +1477,7 @@ public class TranslateOverTimeComponent extends Component
     setMovingForwardAction.setTargetUID(gameObject.getUID());
     setMovingForwardAction.setMovingForward(movingForward);
     
-    actionBuffer.add(setMovingForwardAction);
+    //actionBuffer.add(setMovingForwardAction);
   }
   
   private void addTranslateAction(PVector translation)
@@ -1394,7 +1486,7 @@ public class TranslateOverTimeComponent extends Component
     translateAction.setTargetUID(gameObject.getUID());
     translateAction.setTranslation(translation);
     
-    actionBuffer.add(translateAction);
+    //actionBuffer.add(translateAction);
   }
 }
 
@@ -1457,7 +1549,7 @@ public class RotateOverTimeComponent extends Component
     rotateAction.setTargetUID(gameObject.getUID());
     rotateAction.setRotation(rotation);
     
-    actionBuffer.add(rotateAction);
+    //actionBuffer.add(rotateAction);
   }
 }
 
@@ -1640,7 +1732,7 @@ public class ScaleOverTimeComponent extends Component
     setXScalingUpAction.setTargetUID(gameObject.getUID());
     setXScalingUpAction.setXScalingUp(xScalingUp);
     
-    actionBuffer.add(setXScalingUpAction);
+    //actionBuffer.add(setXScalingUpAction);
   }
   
   private void addSetYScalingUpAction()
@@ -1649,7 +1741,7 @@ public class ScaleOverTimeComponent extends Component
     setYScalingUpAction.setTargetUID(gameObject.getUID());
     setYScalingUpAction.setYScalingUp(yScalingUp);
     
-    actionBuffer.add(setYScalingUpAction);
+    //actionBuffer.add(setYScalingUpAction);
   }
   
   private void addSetZScalingUpAction()
@@ -1658,7 +1750,7 @@ public class ScaleOverTimeComponent extends Component
     setZScalingUpAction.setTargetUID(gameObject.getUID());
     setZScalingUpAction.setZScalingUp(zScalingUp);
     
-    actionBuffer.add(setZScalingUpAction);
+    //actionBuffer.add(setZScalingUpAction);
   }
   
   private void addScaleAction(PVector scale)
@@ -1667,7 +1759,7 @@ public class ScaleOverTimeComponent extends Component
     scaleAction.setTargetUID(gameObject.getUID());
     scaleAction.setScale(scale);
     
-    actionBuffer.add(scaleAction);
+    //actionBuffer.add(scaleAction);
   }
 }
 
@@ -1681,6 +1773,10 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
   {
     case "Render":
       component = new RenderComponent(gameObject);
+      break;
+      
+    case "PerspectiveCamera":
+      component = new PerspectiveCameraComponent(gameObject);
       break;
       
     case "TranslateOverTime":
@@ -1714,6 +1810,10 @@ public IComponent deserializeComponent(GameObject gameObject, JSONObject jsonCom
   {
     case RENDER:
       component = new RenderComponent(gameObject);
+      break;
+      
+    case PERSPECTIVE_CAMERA:
+      component = new PerspectiveCameraComponent(gameObject);
       break;
       
     case TRANSLATE_OVER_TIME:
@@ -2507,119 +2607,36 @@ public class GameState_ChooseClientServerState extends GameState
       {
         gameStateController.pushState(new GameState_ServerState());
       }
-      else if (key == 'c')
+      else if (key == '1')
       {
-        gameStateController.pushState(new GameState_ClientState());
+        gameStateController.pushState(new GameState_ClientState1());
+      }
+      else if (key == '2')
+      {
+        gameStateController.pushState(new GameState_ClientState2());
       }
     }
   }
   
   @Override public void onExit()
   {
-  }
-}
-
-public class GameState_ClientState extends GameState implements IClientCallbackHandler
-{
-  public GameState_ClientState()
-  {
-    super();
-  }
-  
-  @Override public void onEnter()
-  {
-    mainClient = new MSClient("127.0.0.1", 5204, this);
-    if (mainClient.connect())
-    {
-      println("Client connected.");
-    }
-    else
-    {
-      println("Client failed to connect.");
-    }
-  }
-  
-  @Override public void update(int deltaTime)
-  {
-    mainClient.update();
-    synchronized(sharedGameObjectManager)
-    {
-      //sharedGameObjectManager.update(deltaTime);
-      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
-      {
-        IGameObject gameObject = (IGameObject)entrySet.getValue();
-        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
-      }
-      scene.render();
-      //if (actionBuffer.size() > 0)
-      //{
-      //  writeToServer();
-      //}
-    } //<>//
-  }
-  
-  @Override public void onExit()
-  {
-    mainClient.disconnect();
-    mainClient = null;
-  }
-  
-  @Override public void handleServerMessage(String serverMessage)
-  {
-    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
-    if (jsonGameWorld != null)
-    {
-      synchronized(sharedGameObjectManager)
-      {
-        sharedGameObjectManager.deserialize(jsonGameWorld);
-        //for (IAction action : actionBuffer)
-        //{
-        //  action.apply();
-        //}
-      }
-    }
-    else
-    {
-      println("Failed to parse server message into JSON form: " + serverMessage);
-    }
-  }
-  
-  private void writeToServer()
-  {
-    if (mainClient.isConnected())
-    {
-      JSONArray jsonActions = new JSONArray();
-      for (IAction action : actionBuffer)
-      {
-        jsonActions.append(action.serialize());
-      }
-      if (jsonActions.size() > 0)
-      {
-        mainClient.write(jsonActions.toString());
-      }
-      actionBuffer.clear();
-    }
-    else
-    {
-      println("mainClient no longer connected.");
-    }
   }
 }
 
 public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
-  private ServerStateThread serverStateThread;
+  private int waitTime;
   
   public GameState_ServerState()
   {
     super();
     
-    serverStateThread = new ServerStateThread();
+    waitTime = 1000;
   }
   
   @Override public void onEnter()
   {
-    sharedGameObjectManager.fromXML("levels/sample_level.xml");
+    sharedGameObjectManager.fromXML("levels/shared_level.xml");
     
     mainServer = new MSServer(5204, this);
     if (mainServer.begin())
@@ -2636,11 +2653,13 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   {
     sharedGameObjectManager.update(deltaTime);
     scene.render();
-    if (!serverStateThread.isAlive())
+    waitTime -= deltaTime;
+    if (waitTime <= 0)
     {
-      serverStateThread.setMessage(sharedGameObjectManager.serialize().toString());
-      serverStateThread.start();
-    } //<>//
+      mainServer.update();
+      mainServer.write(sharedGameObjectManager.serialize().toString());
+      waitTime += 1000;
+    }
   }
   
   @Override public void onExit()
@@ -2672,23 +2691,121 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   }
 }
 
-public class ServerStateThread extends Thread
+public class GameState_ClientState1 extends GameState implements IClientCallbackHandler
 {
-  private String message;
-  
-  public ServerStateThread()
+  public GameState_ClientState1()
   {
+    super();
   }
   
-  public void setMessage(String _message)
+  @Override public void onEnter()
   {
-    message = _message;
+    localGameObjectManager.fromXML("levels/client_level_1.xml");
+    
+    mainClient = new MSClient("127.0.0.1", 5204, this);
+    if (mainClient.connect())
+    {
+      println("Client connected.");
+    }
+    else
+    {
+      println("Client failed to connect.");
+    }
   }
   
-  @Override public void start()
+  @Override public void update(int deltaTime)
   {
-    mainServer.update();
-    mainServer.write(message);
+    mainClient.update();
+    synchronized(sharedGameObjectManager)
+    {
+      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
+      {
+        IGameObject gameObject = (IGameObject)entrySet.getValue();
+        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
+      }
+      scene.render();
+    }
+  }
+  
+  @Override public void onExit()
+  {
+    mainClient.disconnect();
+    mainClient = null;
+  }
+  
+  @Override public void handleServerMessage(String serverMessage)
+  {
+    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
+    if (jsonGameWorld != null)
+    {
+      synchronized(sharedGameObjectManager)
+      {
+        sharedGameObjectManager.deserialize(jsonGameWorld);
+      }
+    }
+    else
+    {
+      println("Failed to parse server message into JSON form: " + serverMessage);
+    }
+  }
+}
+
+public class GameState_ClientState2 extends GameState implements IClientCallbackHandler
+{
+  public GameState_ClientState2()
+  {
+    super();
+  }
+  
+  @Override public void onEnter()
+  {
+    localGameObjectManager.fromXML("levels/client_level_2.xml");
+    
+    mainClient = new MSClient("127.0.0.1", 5204, this);
+    if (mainClient.connect())
+    {
+      println("Client connected.");
+    }
+    else
+    {
+      println("Client failed to connect.");
+    }
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+    mainClient.update();
+    synchronized(sharedGameObjectManager)
+    {
+      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
+      {
+        IGameObject gameObject = (IGameObject)entrySet.getValue();
+        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
+      }
+      scene.render();
+    }
+  }
+  
+  @Override public void onExit()
+  {
+    mainClient.disconnect();
+    mainClient = null;
+  }
+  
+  @Override public void handleServerMessage(String serverMessage)
+  {
+    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
+    if (jsonGameWorld != null)
+    {
+      synchronized(sharedGameObjectManager)
+      {
+        sharedGameObjectManager.deserialize(jsonGameWorld);
+      }
+    }
+    else
+    {
+      println("Failed to parse server message into JSON form: " + serverMessage);
+    }
   }
 }
 
@@ -3429,9 +3546,9 @@ public interface IScene
 
 public abstract class Camera implements ICamera
 {
-  private PVector position;
-  private PVector target;
-  private PVector up;
+  protected PVector position;
+  protected PVector target;
+  protected PVector up;
   
   public Camera()
   {
@@ -3472,7 +3589,7 @@ public abstract class Camera implements ICamera
   {
     position = new PVector(0.0f, 0.0f, 10.0f);
     target = new PVector(0.0f, 0.0f, 0.0f);
-    up = new PVector(0.0f, -1.0f, 0.0f);
+    up = new PVector(0.0f, 1.0f, 0.0f);
   }
   
   @Override public void apply()
@@ -3796,6 +3913,25 @@ public class Sprite implements ISprite
   
   @Override public void render()
   {
+    pushMatrix();
+    
+    translate(translation.x, translation.y, translation.z);
+    rotateZ(rotation);
+    scale(scale.x, scale.y, scale.z);
+    
+    //==============================================
+    // CHANGE HOW SPRITES ARE RENDERED HERE
+    fill(255);
+    
+    beginShape();
+    vertex(-50.0f, -50.0f, 0.0f);
+    vertex(50.0f, -50.0f, 0.0f);
+    vertex(-50.0f, 50.0f, 0.0f);
+    //vertex(50.0f, 50.0f, 0.0f);
+    endShape();
+    //==============================================
+    
+    popMatrix();
   }
   
   @Override public JSONObject serialize()
