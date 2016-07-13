@@ -1,7 +1,7 @@
 <Level>
-    <GameObject file="box/box.xml">
+	<GameObject file="game_objects/box.xml">
 		<Transform>
-			<Translation x="0.0" y="0.0" z="0.0"/>
+			<Translation x="0.0" y="0.0" z="-150.0"/>
 			<Rotation x="2.0" y="0.0" z="0.0"/>
 			<Scale x="15.0" y="15.0" z="15.0"/>
 		</Transform>

@@ -11,8 +11,6 @@
 public interface IMaterial
 {
   public int        fromMTL(String[] mtlFile, int lineIndex);
-  public JSONObject serialize();
-  public void       deserialize(JSONObject jsonMaterial);
   public String     getName();
   public PVector    getAmbientReflect();
   public PVector    getDiffuseReflect();
@@ -29,8 +27,9 @@ public interface IMaterialLib
   public IMaterial getMaterial(String name);
 }
 
-public interface IMaterialLibManager
+public interface IMaterialManager
 {
+  public PImage getTexture(String name);
   public IMaterialLib getMaterialLib(String mtlFileName);
 }
 
@@ -58,11 +57,6 @@ public class Material implements IMaterial
     ambientReflect = new PVector();
     diffuseReflect = new PVector();
     specularReflect = new PVector();
-  }
-  
-  public Material(JSONObject jsonMaterial)
-  {
-    deserialize(jsonMaterial);
   }
   
   // Returns the line index this method stopped parsing (the end of the material).
@@ -106,7 +100,7 @@ public class Material implements IMaterial
           
         case "map_Kd":
           textureFileName = words[1];
-          texture = textureManager.getTexture(textureFileName);
+          texture = materialManager.getTexture(textureFileName);
           break;
           
         case "newmtl":
@@ -115,61 +109,6 @@ public class Material implements IMaterial
     }
     
     return lineIndex;
-  }
-  
-  @Override public JSONObject serialize()
-  {
-    JSONObject jsonMaterial = new JSONObject();
-    
-    jsonMaterial.setString("name", name);
-    
-    JSONObject jsonAmbientReflect = new JSONObject();
-    jsonAmbientReflect.setFloat("r", ambientReflect.x);
-    jsonAmbientReflect.setFloat("g", ambientReflect.y);
-    jsonAmbientReflect.setFloat("b", ambientReflect.z);
-    jsonMaterial.setJSONObject("ambientReflect", jsonAmbientReflect);
-    
-    JSONObject jsonDiffuseReflect = new JSONObject();
-    jsonDiffuseReflect.setFloat("r", diffuseReflect.x);
-    jsonDiffuseReflect.setFloat("g", diffuseReflect.y);
-    jsonDiffuseReflect.setFloat("b", diffuseReflect.z);
-    jsonMaterial.setJSONObject("diffuseReflect", jsonDiffuseReflect);
-    
-    JSONObject jsonSpecularReflect = new JSONObject();
-    jsonSpecularReflect.setFloat("r", specularReflect.x);
-    jsonSpecularReflect.setFloat("g", specularReflect.y);
-    jsonSpecularReflect.setFloat("b", specularReflect.z);
-    jsonMaterial.setJSONObject("specularReflect", jsonSpecularReflect);
-    
-    jsonMaterial.setFloat("specularExponent", specularExponent);
-    
-    jsonMaterial.setFloat("dissolve", dissolve);
-    
-    jsonMaterial.setString("textureFileName", textureFileName);
-    
-    return jsonMaterial;
-  }
-  
-  @Override public void deserialize(JSONObject jsonMaterial)
-  {
-    name = jsonMaterial.getString("name");
-        
-    JSONObject jsonAmbientReflect = jsonMaterial.getJSONObject("ambientReflect");
-    ambientReflect = new PVector(jsonAmbientReflect.getFloat("r"), jsonAmbientReflect.getFloat("g"), jsonAmbientReflect.getFloat("b"));
-    
-    JSONObject jsonDiffuseReflect = jsonMaterial.getJSONObject("diffuseReflect");
-    diffuseReflect = new PVector(jsonDiffuseReflect.getFloat("r"), jsonDiffuseReflect.getFloat("g"), jsonDiffuseReflect.getFloat("b"));
-    
-    JSONObject jsonSpecularReflect = jsonMaterial.getJSONObject("specularReflect");
-    specularReflect = new PVector(jsonSpecularReflect.getFloat("r"), jsonSpecularReflect.getFloat("g"), jsonSpecularReflect.getFloat("b"));
-    
-    specularExponent = jsonMaterial.getFloat("specularExponent");
-    
-    dissolve = jsonMaterial.getFloat("dissolve");
-    
-    textureFileName = jsonMaterial.getString("textureFileName");
-    
-    texture = textureManager.getTexture(textureFileName);
   }
   
   @Override public String getName()
@@ -251,13 +190,24 @@ public class MaterialLib implements IMaterialLib
   }
 }
 
-public class MaterialLibManager implements IMaterialLibManager
+public class MaterialManager implements IMaterialManager
 {
+  private HashMap<String, PImage> textures;
   private HashMap<String, IMaterialLib> materialLibs;
   
-  public MaterialLibManager()
+  public MaterialManager()
   {
+    textures = new HashMap<String, PImage>();
     materialLibs = new HashMap<String, IMaterialLib>();
+  }
+  
+  @Override public PImage getTexture(String name)
+  {
+    if (!textures.containsKey(name))
+    {
+      textures.put(name, loadImage(name));
+    }
+    return textures.get(name);
   }
   
   @Override public IMaterialLib getMaterialLib(String mtlFileName)

@@ -17,8 +17,8 @@ interface IGameObject
   public void fromXML(String fileName);
   
   // Convert to and construct from a JSON object. This includes all current object state to make networking possible.
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonGameObject);
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatGameObject flatGameObject);
   
   // Every instantiated Game Object has a unique ID.
   public int getUID();
@@ -49,6 +49,8 @@ interface IGameObject
   
   // Updates and renders the Game Object over the given time in milliseconds.
   public void update(int deltaTime);
+  
+  public String toString();
 }
 
 // This is basically a convenience container class for GameObjects that can load levels,
@@ -58,9 +60,9 @@ interface IGameObjectManager
   // Creates a level full of GameObjects based on a Level XML file.
   public void fromXML(String fileName);
   
-  // Convert to and construct a whole level from a JSON object. This includes all current objects' state to make networking possible.
-  public JSONArray serialize();
-  public void deserialize(JSONArray jsonGameWorld);
+  // Convert to and construct a whole level from a flat object. This includes all current objects' state to make networking possible.
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatGameWorld flatGameWorld);
   
   public void update(int deltaTime);
   
@@ -70,6 +72,8 @@ interface IGameObjectManager
   public HashMap<Integer, IGameObject> getGameObjects();
   public void                   removeGameObject(int UID);
   public void                   clearGameObjects();
+  
+  public String toString();
 }
 
 //---------------------------------------------------------------
@@ -105,7 +109,7 @@ public class GameObject implements IGameObject
     components = new ArrayList<IComponent>();
   }
   
-  public GameObject(IGameObjectManager _owner, JSONObject jsonGameObject)
+  public GameObject(IGameObjectManager _owner, FlatGameObject flatGameObject)
   {
     owner = _owner;
     
@@ -115,7 +119,7 @@ public class GameObject implements IGameObject
     
     components = new ArrayList<IComponent>();
     
-    deserialize(jsonGameObject);
+    deserialize(flatGameObject);
   }
   
   @Override public void destroy()
@@ -143,69 +147,48 @@ public class GameObject implements IGameObject
     }
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonGameObject = new JSONObject();
+    int tagOffset = builder.createString(tag);
     
-    jsonGameObject.setInt("UID", UID);
-    jsonGameObject.setString("tag", tag);
-    
-    JSONObject jsonTranslation = new JSONObject();
-    jsonTranslation.setFloat("x", translation.x);
-    jsonTranslation.setFloat("y", translation.y);
-    jsonTranslation.setFloat("z", translation.z);
-    jsonGameObject.setJSONObject("translation", jsonTranslation);
-    
-    JSONObject jsonRotation = new JSONObject();
-    jsonRotation.setFloat("x", rotation.x);
-    jsonRotation.setFloat("y", rotation.y);
-    jsonRotation.setFloat("z", rotation.z);
-    jsonGameObject.setJSONObject("rotation", jsonRotation);
-    
-    JSONObject jsonScale = new JSONObject();
-    jsonScale.setFloat("x", scale.x);
-    jsonScale.setFloat("y", scale.y);
-    jsonScale.setFloat("z", scale.z);
-    jsonGameObject.setJSONObject("scale", jsonScale);
-    
-    JSONArray jsonComponents = new JSONArray();
-    for (IComponent component : components)
+    int[] flatComponents = new int[components.size()];
+    for (int i = 0; i < components.size(); i++)
     {
-      JSONObject jsonComponent = component.serialize();
-      jsonComponent.setString("componentType", componentTypeEnumToString(component.getComponentType()));
-      jsonComponents.append(jsonComponent);
+      flatComponents[i] = components.get(i).serialize(builder);
     }
-    jsonGameObject.setJSONArray("components", jsonComponents);
+    int flatComponentsVector = FlatGameObject.createComponentTablesVector(builder, flatComponents);
     
-    return jsonGameObject;
+    FlatGameObject.startFlatGameObject(builder);
+    FlatGameObject.addUid(builder, UID);
+    FlatGameObject.addTag(builder, tagOffset);
+    FlatGameObject.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
+    FlatGameObject.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
+    FlatGameObject.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
+    FlatGameObject.addComponentTables(builder, flatComponentsVector);
+    
+    return FlatGameObject.endFlatGameObject(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonGameObject)
+  @Override public void deserialize(FlatGameObject flatGameObject)
   {
     destroy();
     
-    UID = jsonGameObject.getInt("UID");
-    tag = jsonGameObject.getString("tag");
+    UID = flatGameObject.uid();
+    tag = flatGameObject.tag();
     
-    JSONObject jsonTranslation = jsonGameObject.getJSONObject("translation");
-    translation.x = jsonTranslation.getFloat("x");
-    translation.y = jsonTranslation.getFloat("y");
-    translation.z = jsonTranslation.getFloat("z");
+    FlatVec3 flatTranslation = flatGameObject.translation();
+    translation = new PVector(flatTranslation.x(), flatTranslation.y(), flatTranslation.z());
     
-    JSONObject jsonRotation = jsonGameObject.getJSONObject("rotation");
-    rotation.x = jsonRotation.getFloat("x");
-    rotation.y = jsonRotation.getFloat("y");
-    rotation.z = jsonRotation.getFloat("z");
+    FlatVec3 flatRotation = flatGameObject.rotation();
+    rotation = new PVector(flatRotation.x(), flatRotation.y(), flatRotation.z());
     
-    JSONObject jsonScale = jsonGameObject.getJSONObject("scale");
-    scale.x = jsonScale.getFloat("x");
-    scale.y = jsonScale.getFloat("y");
-    scale.z = jsonScale.getFloat("z");
+    FlatVec3 flatScale = flatGameObject.scale();
+    scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
     
-    JSONArray jsonComponents = jsonGameObject.getJSONArray("components");
-    for (int i = 0; i < jsonComponents.size(); i++)
+    for (int i = 0; i < flatGameObject.componentTablesLength(); ++i)
     {
-      components.add(deserializeComponent(this, jsonComponents.getJSONObject(i)));
+      FlatComponentTable flatComponentTable = flatGameObject.componentTables(i);
+      components.add(deserializeComponent(this, flatComponentTable));
     }
   }
   
@@ -293,10 +276,25 @@ public class GameObject implements IGameObject
     {
       component.update(deltaTime);
     }
+  }
+  
+  @Override public String toString()
+  {
+    String stringGameObject = new String();
     
-    //println("Translation: (" + translation.x + ", " + translation.y + ", " + translation.z + ")");
-    //println("Rotation: (" + rotation.x + ", " + rotation.y + ", " + rotation.z + ")");
-    //println("Scale: (" + scale.x + ", " + scale.y + ", " + scale.z + ")");
+    stringGameObject += "========== GameObject ==========\n";
+    stringGameObject += "UID: " + UID + "\t\t tag: " + tag + "\n";
+    stringGameObject += "Translation: (" + translation.x + ", " + translation.y + ", " + translation.z + ")\n";
+    stringGameObject += "Rotation: (" + rotation.x + ", " + rotation.y + ", " + rotation.z + ")\n";
+    stringGameObject += "Scale: (" + scale.x + ", " + scale.y + ", " + scale.z + ")\n";
+    stringGameObject += "Components: \n";
+    
+    for (IComponent component : components)
+    {
+      stringGameObject += component.toString();
+    }
+    
+    return stringGameObject;
   }
 }
 
@@ -360,27 +358,35 @@ public class GameObjectManager implements IGameObjectManager
     }
   }
   
-  @Override public JSONArray serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONArray jsonGameWorld = new JSONArray();
+    int i = 0;
+    int[] flatGameObjects = new int[gameObjects.size()];
     
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
       
-      jsonGameWorld.append(gameObject.serialize());
+      flatGameObjects[i] = gameObject.serialize(builder);
+      i++;
     }
     
-    return jsonGameWorld;
+    int flatGameObjectsVector = FlatGameWorld.createGameObjectsVector(builder, flatGameObjects);
+    
+    FlatGameWorld.startFlatGameWorld(builder);
+    FlatGameWorld.addGameObjects(builder, flatGameObjectsVector);
+    
+    return FlatGameWorld.endFlatGameWorld(builder);
   }
   
-  @Override public void deserialize(JSONArray jsonGameWorld)
+  @Override public void deserialize(FlatGameWorld flatGameWorld)
   {
     clearGameObjects();
     
-    for (int i = 0; i < jsonGameWorld.size(); i++)
+    for (int i = 0; i < flatGameWorld.gameObjectsLength(); i++)
     {
-      IGameObject gameObject = new GameObject(this, jsonGameWorld.getJSONObject(i));
+      FlatGameObject flatGameObject = flatGameWorld.gameObjects(i);
+      IGameObject gameObject = new GameObject(this, flatGameObject);
       gameObjects.put(gameObject.getUID(), gameObject);
     }
   }
@@ -462,5 +468,21 @@ public class GameObjectManager implements IGameObjectManager
       gameObject.destroy();
     }
     gameObjects.clear();
+  }
+  
+  @Override public String toString()
+  {
+    String stringGameWorld = new String();
+    
+    stringGameWorld += "======== Game World =======\n";
+    stringGameWorld += "GameObjects: \n";
+    
+    for (Map.Entry entry : gameObjects.entrySet())
+    {
+      IGameObject gameObject = (IGameObject)entry.getValue();
+      stringGameWorld += gameObject.toString();
+    }
+    
+    return stringGameWorld;
   }
 }

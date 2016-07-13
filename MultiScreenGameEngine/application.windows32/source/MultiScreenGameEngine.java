@@ -8,6 +8,9 @@ import java.util.LinkedList;
 import java.util.Map; 
 import processing.net.Client; 
 import processing.net.Server; 
+import com.google.flatbuffers.FlatBufferBuilder; 
+import java.nio.ByteBuffer; 
+import msge.std.*; 
 import java.awt.Robot; 
 import java.awt.AWTException; 
 import java.awt.MouseInfo; 
@@ -37,13 +40,18 @@ public class MultiScreenGameEngine extends PApplet {
 
 
 
+ 
+
+
+
 
 
 
 MultiScreenGameEngine mainObject;
 IEventManager eventManager;
-ITextureManager textureManager;
-IMaterialLibManager materialLibManager;
+IMaterialManager materialManager;
+ISpriteManager spriteManager;
+IModelManager modelManager;
 IScene scene;
 IGameStateController gameStateController;
 
@@ -56,8 +64,9 @@ public void setup()
   
   mainObject = this;
   eventManager = new EventManager();
-  textureManager = new TextureManager();
-  materialLibManager = new MaterialLibManager(); 
+  materialManager = new MaterialManager();
+  spriteManager = new SpriteManager();
+  modelManager = new ModelManager();
   scene = new Scene();
   gameStateController = new GameStateController();
   gameStateController.pushState(new GameState_ChooseClientServerState());
@@ -987,11 +996,12 @@ public interface IComponent
 {
   public void            destroy();
   public void            fromXML(XML xmlComponent);
-  public JSONObject      serialize();
-  public void            deserialize(JSONObject jsonComponent);
+  public int             serialize(FlatBufferBuilder builder);
+  public void            deserialize(com.google.flatbuffers.Table componentTable);
   public ComponentType   getComponentType();
   public IGameObject     getGameObject();
   public void            update(int deltaTime);
+  public String          toString();
 }
 
 
@@ -1068,15 +1078,6 @@ public abstract class Component implements IComponent
   {
   }
   
-  @Override public JSONObject serialize()
-  {
-    return new JSONObject();
-  }
-  
-  @Override public void deserialize(JSONObject jsonComponent)
-  {
-  }
-  
   // There is no need to change this in subclasses.
   @Override final public IGameObject getGameObject()
   {
@@ -1091,30 +1092,30 @@ public abstract class Component implements IComponent
 
 public class RenderComponent extends Component
 {
-  ArrayList<ISprite> sprites;
-  ArrayList<IModel> models;
+  ArrayList<Integer> spriteHandles;
+  ArrayList<Integer> modelHandles;
   
   public RenderComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
-    sprites = new ArrayList<ISprite>();
-    models = new ArrayList<IModel>();
+    spriteHandles = new ArrayList<Integer>();
+    modelHandles = new ArrayList<Integer>();
   }
   
   @Override public void destroy()
   {
-    for (ISprite sprite : sprites)
+    for (Integer handle : spriteHandles)
     {
-      scene.removeSprite(sprite.getName());
+      scene.removeSpriteInstance(handle);
     }
-    for (IModel model : models)
+    for (Integer handle : modelHandles)
     {
-      scene.removeModel(model.getName());
+      scene.removeModelInstance(handle);
     }
     
-    sprites.clear();
-    models.clear();
+    spriteHandles.clear();
+    modelHandles.clear();
   }
   
   @Override public void fromXML(XML xmlComponent)
@@ -1123,61 +1124,63 @@ public class RenderComponent extends Component
     {
       if (xmlSubComponent.getName().equals("Sprite"))
       {
-        ISprite sprite = new Sprite(xmlSubComponent.getString("name"));
-        scene.addSprite(sprite);
-        sprites.add(sprite);
+        ISpriteInstance sprite = new SpriteInstance(xmlSubComponent.getString("name"));
+        spriteHandles.add(scene.addSpriteInstance(sprite));
       }
       else if (xmlSubComponent.getName().equals("Model"))
       {
-        IModel model = new Model(xmlSubComponent.getString("name"));
-        model.fromOBJ(xmlSubComponent.getString("objFileName"));
-        scene.addModel(model);
-        models.add(model);
+        IModelInstance modelInstance = new ModelInstance(xmlSubComponent.getString("name"));
+        modelHandles.add(scene.addModelInstance(modelInstance));
       }
     }
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONArray jsonSprites = new JSONArray();
-    JSONArray jsonModels = new JSONArray();
-    
-    for (ISprite sprite : sprites)
+    int[] flatSprites = new int[spriteHandles.size()];
+    for (int i = 0; i < spriteHandles.size(); i++)
     {
-      jsonSprites.append(sprite.serialize());
+      flatSprites[i] = scene.getSpriteInstance(spriteHandles.get(i)).serialize(builder);
     }
+    int flatSpritesVector = FlatRenderComponent.createSpritesVector(builder, flatSprites);
     
-    for (IModel model : models)
+    int[] flatModels = new int[modelHandles.size()];
+    for (int i = 0; i < modelHandles.size(); i++)
     {
-      jsonModels.append(model.serialize());
+      flatModels[i] = scene.getModelInstance(modelHandles.get(i)).serialize(builder);
     }
+    int flatModelsVector = FlatRenderComponent.createModelsVector(builder, flatModels);
     
-    JSONObject jsonRenderComponent = new JSONObject();
-    jsonRenderComponent.setJSONArray("sprites", jsonSprites);
-    jsonRenderComponent.setJSONArray("models", jsonModels);
+    FlatRenderComponent.startFlatRenderComponent(builder);
+    FlatRenderComponent.addSprites(builder, flatSpritesVector);
+    FlatRenderComponent.addModels(builder, flatModelsVector);
     
-    return jsonRenderComponent;
+    int flatRenderComponent = FlatRenderComponent.endFlatRenderComponent(builder);
+    
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatRenderComponent);
+    FlatComponentTable.addComponent(builder, flatRenderComponent);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonRenderComponent)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    destroy();
+    FlatRenderComponent flatRenderComponent = (FlatRenderComponent)componentTable;
     
-    JSONArray jsonSprites = jsonRenderComponent.getJSONArray("sprites");
-    JSONArray jsonModels = jsonRenderComponent.getJSONArray("models");
-    
-    for (int i = 0; i < jsonSprites.size(); i++)
+    for (int i = 0; i < flatRenderComponent.spritesLength(); i++)
     {
-      ISprite sprite = new Sprite(jsonSprites.getJSONObject(i));
-      scene.addSprite(sprite);
-      sprites.add(sprite);
+      FlatSprite flatSprite = flatRenderComponent.sprites(i);
+      ISpriteInstance spriteInstance = new SpriteInstance(flatSprite.spriteName());
+      spriteInstance.deserialize(flatSprite);
+      spriteHandles.add(scene.addSpriteInstance(spriteInstance));
     }
     
-    for (int i = 0; i < jsonModels.size(); i++)
+    for (int i = 0; i < flatRenderComponent.modelsLength(); i++)
     {
-      IModel model = new Model(jsonModels.getJSONObject(i));
-      scene.addModel(model);
-      models.add(model);
+      FlatModel flatModel = flatRenderComponent.models(i);
+      IModelInstance modelInstance = new ModelInstance(flatModel.modelName());
+      modelInstance.deserialize(flatModel);
+      modelHandles.add(scene.addModelInstance(modelInstance));
     }
   }
   
@@ -1188,19 +1191,40 @@ public class RenderComponent extends Component
   
   @Override public void update(int deltaTime)
   {
-    for (ISprite sprite : sprites)
+    for (Integer spriteHandle : spriteHandles)
     {
-      sprite.setTranslation(gameObject.getTranslation());
-      sprite.setRotation(gameObject.getRotation().z);
-      sprite.setScale(gameObject.getScale());
+      ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
+      spriteInstance.setTranslation(gameObject.getTranslation());
+      spriteInstance.setRotation(gameObject.getRotation());
+      spriteInstance.setScale(gameObject.getScale());
     }
     
-    for (IModel model : models)
+    for (Integer modelHandle : modelHandles)
     {
-      model.setTranslation(gameObject.getTranslation());
-      model.setRotation(gameObject.getRotation());
-      model.setScale(gameObject.getScale());
+      IModelInstance modelInstance = scene.getModelInstance(modelHandle);
+      modelInstance.setTranslation(gameObject.getTranslation());
+      modelInstance.setRotation(gameObject.getRotation());
+      modelInstance.setScale(gameObject.getScale());
     }
+  }
+  
+  @Override public String toString()
+  {
+    String stringRenderComponent = "=========== RenderComponent ===========\n";
+    
+    for (Integer spriteHandle : spriteHandles)
+    {
+      ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
+      stringRenderComponent += "\tSprite: " + spriteInstance.getSprite().getName() + "\n";
+    }
+    
+    for (Integer modelHandle : modelHandles)
+    {
+      IModelInstance modelInstance = scene.getModelInstance(modelHandle);
+      stringRenderComponent += "\tModel: " + modelInstance.getModel().getName() + "\n";
+    }
+    
+    return stringRenderComponent;
   }
 }
 
@@ -1222,7 +1246,6 @@ public class PerspectiveCameraComponent extends Component
   
   @Override public void fromXML(XML xmlComponent)
   {
-    println("parsing perspective camera");
     for (XML xmlParameter : xmlComponent.getChildren())
     {
       if (xmlParameter.getName().equals("Position"))
@@ -1268,6 +1291,16 @@ public class PerspectiveCameraComponent extends Component
     }
     
     scene.setPerspectiveCamera(camera);
+  }
+  
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    return 0;
+  }
+  
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
+  {
+    //FlatPerspectiveCameraComponent flatPerspectiveCameraComponent = (FlatPerspectiveCameraComponent)componentTable;
   }
   
   @Override public ComponentType getComponentType()
@@ -1336,44 +1369,47 @@ public class TranslateOverTimeComponent extends Component
     backwardLimit = xmlComponent.getFloat("backwardLimit");
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonTranslateOverTime = new JSONObject();
+    FlatTranslateOverTimeComponent.startFlatTranslateOverTimeComponent(builder);
+    FlatTranslateOverTimeComponent.addMovingLeft(builder, movingLeft);
+    FlatTranslateOverTimeComponent.addXUnitsPerMillisecond(builder, xUnitsPerMillisecond);
+    FlatTranslateOverTimeComponent.addLeftLimit(builder, leftLimit);
+    FlatTranslateOverTimeComponent.addRightLimit(builder, rightLimit);
+    FlatTranslateOverTimeComponent.addMovingDown(builder, movingDown);
+    FlatTranslateOverTimeComponent.addYUnitsPerMillisecond(builder, yUnitsPerMillisecond);
+    FlatTranslateOverTimeComponent.addLowerLimit(builder, lowerLimit);
+    FlatTranslateOverTimeComponent.addUpperLimit(builder, upperLimit);
+    FlatTranslateOverTimeComponent.addMovingForward(builder, movingForward);
+    FlatTranslateOverTimeComponent.addZUnitsPerMillisecond(builder, zUnitsPerMillisecond);
+    FlatTranslateOverTimeComponent.addForwardLimit(builder, forwardLimit);
+    FlatTranslateOverTimeComponent.addBackwardLimit(builder, backwardLimit);
+    int flatTranslateOverTimeComponentOffset = FlatTranslateOverTimeComponent.endFlatTranslateOverTimeComponent(builder);
     
-    jsonTranslateOverTime.setBoolean("movingLeft", movingLeft);
-    jsonTranslateOverTime.setFloat("xUnitsPerMillisecond", xUnitsPerMillisecond);
-    jsonTranslateOverTime.setFloat("leftLimit", leftLimit);
-    jsonTranslateOverTime.setFloat("rightLimit", rightLimit);
-    
-    jsonTranslateOverTime.setBoolean("movingDown", movingDown);
-    jsonTranslateOverTime.setFloat("yUnitsPerMillisecond", yUnitsPerMillisecond);
-    jsonTranslateOverTime.setFloat("lowerLimit", lowerLimit);
-    jsonTranslateOverTime.setFloat("upperLimit", upperLimit);
-    
-    jsonTranslateOverTime.setBoolean("movingForward", movingForward);
-    jsonTranslateOverTime.setFloat("zUnitsPerMillisecond", zUnitsPerMillisecond);
-    jsonTranslateOverTime.setFloat("forwardLimit", forwardLimit);
-    jsonTranslateOverTime.setFloat("backwardLimit", backwardLimit);
-    
-    return jsonTranslateOverTime;
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatTranslateOverTimeComponent);
+    FlatComponentTable.addComponent(builder, flatTranslateOverTimeComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonTranslateOverTime)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    movingLeft = jsonTranslateOverTime.getBoolean("movingLeft");
-    xUnitsPerMillisecond = jsonTranslateOverTime.getFloat("xUnitsPerMillisecond");
-    leftLimit = jsonTranslateOverTime.getFloat("leftLimit");
-    rightLimit = jsonTranslateOverTime.getFloat("rightLimit");
+    FlatTranslateOverTimeComponent flatTranslateOverTimeComponent = (FlatTranslateOverTimeComponent)componentTable;
     
-    movingDown = jsonTranslateOverTime.getBoolean("movingDown");
-    yUnitsPerMillisecond = jsonTranslateOverTime.getFloat("yUnitsPerMillisecond");
-    lowerLimit = jsonTranslateOverTime.getFloat("lowerLimit");
-    upperLimit = jsonTranslateOverTime.getFloat("upperLimit");
+    movingLeft = flatTranslateOverTimeComponent.movingLeft();
+    xUnitsPerMillisecond = flatTranslateOverTimeComponent.xUnitsPerMillisecond();
+    leftLimit = flatTranslateOverTimeComponent.leftLimit();
+    rightLimit = flatTranslateOverTimeComponent.rightLimit();
     
-    movingForward = jsonTranslateOverTime.getBoolean("movingForward");
-    zUnitsPerMillisecond = jsonTranslateOverTime.getFloat("zUnitsPerMillisecond");
-    forwardLimit = jsonTranslateOverTime.getFloat("forwardLimit");
-    backwardLimit = jsonTranslateOverTime.getFloat("backwardLimit");
+    movingDown = flatTranslateOverTimeComponent.movingDown();
+    yUnitsPerMillisecond = flatTranslateOverTimeComponent.yUnitsPerMillisecond();
+    lowerLimit = flatTranslateOverTimeComponent.lowerLimit();
+    upperLimit = flatTranslateOverTimeComponent.upperLimit();
+    
+    movingForward = flatTranslateOverTimeComponent.movingForward();
+    zUnitsPerMillisecond = flatTranslateOverTimeComponent.zUnitsPerMillisecond();
+    forwardLimit = flatTranslateOverTimeComponent.forwardLimit();
+    backwardLimit = flatTranslateOverTimeComponent.backwardLimit();
   } 
   
   @Override public ComponentType getComponentType()
@@ -1488,6 +1524,25 @@ public class TranslateOverTimeComponent extends Component
     
     //actionBuffer.add(translateAction);
   }
+  
+  @Override public String toString()
+  {
+    String stringTranslateOverTimeComponent = new String();
+    stringTranslateOverTimeComponent += "=========== TranslateOverTimeComponent ===========\n";
+    stringTranslateOverTimeComponent += "\tmovingLeft: " + movingLeft + "\n";
+    stringTranslateOverTimeComponent += "\txUnitsPerMillisecond: " + xUnitsPerMillisecond + "\n";
+    stringTranslateOverTimeComponent += "\tleftLimit: " + leftLimit + "\n";
+    stringTranslateOverTimeComponent += "\trightLimit: " + rightLimit + "\n";
+    stringTranslateOverTimeComponent += "\tmovingDown: " + movingDown + "\n";
+    stringTranslateOverTimeComponent += "\tyUnitsPerMillisecond: " + yUnitsPerMillisecond + "\n";
+    stringTranslateOverTimeComponent += "\tlowerLimit: " + lowerLimit + "\n";
+    stringTranslateOverTimeComponent += "\tupperLimit: " + upperLimit + "\n";
+    stringTranslateOverTimeComponent += "\tmovingForward: " + movingForward + "\n";
+    stringTranslateOverTimeComponent += "\tzUnitsPerMillisecond: " + zUnitsPerMillisecond + "\n";
+    stringTranslateOverTimeComponent += "\tforwardLimit: " + forwardLimit + "\n";
+    stringTranslateOverTimeComponent += "\tbackwardLimit: " + backwardLimit + "\n";
+    return stringTranslateOverTimeComponent;
+  }
 }
 
 
@@ -1513,22 +1568,27 @@ public class RotateOverTimeComponent extends Component
     zRadiansPerMillisecond = xmlComponent.getFloat("zRadiansPerSecond") / 1000.0f;
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonRotateOverTime = new JSONObject();
+    FlatRotateOverTimeComponent.startFlatRotateOverTimeComponent(builder);
+    FlatRotateOverTimeComponent.addXRadiansPerMillisecond(builder, xRadiansPerMillisecond);
+    FlatRotateOverTimeComponent.addYRadiansPerMillisecond(builder, yRadiansPerMillisecond);
+    FlatRotateOverTimeComponent.addZRadiansPerMillisecond(builder, zRadiansPerMillisecond);
+    int flatRotateOverTimeComponentOffset = FlatRotateOverTimeComponent.endFlatRotateOverTimeComponent(builder);
     
-    jsonRotateOverTime.setFloat("xRadiansPerMillisecond", xRadiansPerMillisecond);
-    jsonRotateOverTime.setFloat("yRadiansPerMillisecond", yRadiansPerMillisecond);
-    jsonRotateOverTime.setFloat("zRadiansPerMillisecond", zRadiansPerMillisecond);
-    
-    return jsonRotateOverTime;
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatRotateOverTimeComponent);
+    FlatComponentTable.addComponent(builder, flatRotateOverTimeComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonRotateOverTime)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    xRadiansPerMillisecond = jsonRotateOverTime.getFloat("xRadiansPerMillisecond");
-    yRadiansPerMillisecond = jsonRotateOverTime.getFloat("yRadiansPerMillisecond");
-    zRadiansPerMillisecond = jsonRotateOverTime.getFloat("zRadiansPerMillisecond");
+    FlatRotateOverTimeComponent flatRotateOverTimeComponent = (FlatRotateOverTimeComponent)componentTable;
+    
+    xRadiansPerMillisecond = flatRotateOverTimeComponent.xRadiansPerMillisecond();
+    yRadiansPerMillisecond = flatRotateOverTimeComponent.yRadiansPerMillisecond();
+    zRadiansPerMillisecond = flatRotateOverTimeComponent.zRadiansPerMillisecond();
   }
   
   @Override public ComponentType getComponentType()
@@ -1550,6 +1610,16 @@ public class RotateOverTimeComponent extends Component
     rotateAction.setRotation(rotation);
     
     //actionBuffer.add(rotateAction);
+  }
+  
+  @Override public String toString()
+  {
+    String stringRotateOverTimeComponent = new String();
+    stringRotateOverTimeComponent += "======= RotateOverTimeComponent =======\n";
+    stringRotateOverTimeComponent += "\txRadiansPerMillisecond: " + xRadiansPerMillisecond + "\n";
+    stringRotateOverTimeComponent += "\tyRadiansPerMillisecond: " + yRadiansPerMillisecond + "\n";
+    stringRotateOverTimeComponent += "\tzRadiansPerMillisecond: " + zRadiansPerMillisecond + "\n";
+    return stringRotateOverTimeComponent;
   }
 }
 
@@ -1609,44 +1679,47 @@ public class ScaleOverTimeComponent extends Component
     zUpperLimit = xmlComponent.getFloat("zUpperLimit");
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonScaleOverTime = new JSONObject();
+    FlatScaleOverTimeComponent.startFlatScaleOverTimeComponent(builder);
+    FlatScaleOverTimeComponent.addXScalingUp(builder, xScalingUp);
+    FlatScaleOverTimeComponent.addXScalePerMillisecond(builder, xScalePerMillisecond);
+    FlatScaleOverTimeComponent.addXLowerLimit(builder, xLowerLimit);
+    FlatScaleOverTimeComponent.addXUpperLimit(builder, xUpperLimit);
+    FlatScaleOverTimeComponent.addYScalingUp(builder, yScalingUp);
+    FlatScaleOverTimeComponent.addYScalePerMillisecond(builder, yScalePerMillisecond);
+    FlatScaleOverTimeComponent.addYLowerLimit(builder, yLowerLimit);
+    FlatScaleOverTimeComponent.addYUpperLimit(builder, yUpperLimit);
+    FlatScaleOverTimeComponent.addZScalingUp(builder, zScalingUp);
+    FlatScaleOverTimeComponent.addZScalePerMillisecond(builder, zScalePerMillisecond);
+    FlatScaleOverTimeComponent.addZLowerLimit(builder, zLowerLimit);
+    FlatScaleOverTimeComponent.addZUpperLimit(builder, zUpperLimit);
+    int flatScaleOverTimeComponentOffset = FlatScaleOverTimeComponent.endFlatScaleOverTimeComponent(builder);
     
-    jsonScaleOverTime.setBoolean("xScalingUp", xScalingUp);
-    jsonScaleOverTime.setFloat("xScalePerMillisecond", xScalePerMillisecond);
-    jsonScaleOverTime.setFloat("xLowerLimit", xLowerLimit);
-    jsonScaleOverTime.setFloat("xUpperLimit", xUpperLimit);
-    
-    jsonScaleOverTime.setBoolean("yScalingUp", yScalingUp);
-    jsonScaleOverTime.setFloat("yScalePerMillisecond", yScalePerMillisecond);
-    jsonScaleOverTime.setFloat("yLowerLimit", yLowerLimit);
-    jsonScaleOverTime.setFloat("yUpperLimit", yUpperLimit);
-    
-    jsonScaleOverTime.setBoolean("zScalingUp", zScalingUp);
-    jsonScaleOverTime.setFloat("zScalePerMillisecond", zScalePerMillisecond);
-    jsonScaleOverTime.setFloat("zLowerLimit", zLowerLimit);
-    jsonScaleOverTime.setFloat("zUpperLimit", zUpperLimit);
-    
-    return jsonScaleOverTime;
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatScaleOverTimeComponent);
+    FlatComponentTable.addComponent(builder, flatScaleOverTimeComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonScaleOverTime)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    xScalingUp = jsonScaleOverTime.getBoolean("xScalingUp");
-    xScalePerMillisecond = jsonScaleOverTime.getFloat("xScalePerMillisecond");
-    xLowerLimit = jsonScaleOverTime.getFloat("xLowerLimit");
-    xUpperLimit = jsonScaleOverTime.getFloat("xUpperLimit");
+    FlatScaleOverTimeComponent flatScaleOverTimeComponent = (FlatScaleOverTimeComponent)componentTable;
     
-    yScalingUp = jsonScaleOverTime.getBoolean("yScalingUp");
-    yScalePerMillisecond = jsonScaleOverTime.getFloat("yScalePerMillisecond");
-    yLowerLimit = jsonScaleOverTime.getFloat("yLowerLimit");
-    yUpperLimit = jsonScaleOverTime.getFloat("yUpperLimit");
+    xScalingUp = flatScaleOverTimeComponent.xScalingUp();
+    xScalePerMillisecond = flatScaleOverTimeComponent.xScalePerMillisecond();
+    xLowerLimit = flatScaleOverTimeComponent.xLowerLimit();
+    xUpperLimit = flatScaleOverTimeComponent.xUpperLimit();
     
-    zScalingUp = jsonScaleOverTime.getBoolean("zScalingUp");
-    zScalePerMillisecond = jsonScaleOverTime.getFloat("zScalePerMillisecond");
-    zLowerLimit = jsonScaleOverTime.getFloat("zLowerLimit");
-    zUpperLimit = jsonScaleOverTime.getFloat("zUpperLimit");
+    yScalingUp = flatScaleOverTimeComponent.yScalingUp();
+    yScalePerMillisecond = flatScaleOverTimeComponent.yScalePerMillisecond();
+    yLowerLimit = flatScaleOverTimeComponent.yLowerLimit();
+    yUpperLimit = flatScaleOverTimeComponent.yUpperLimit();
+    
+    zScalingUp = flatScaleOverTimeComponent.zScalingUp();
+    zScalePerMillisecond = flatScaleOverTimeComponent.zScalePerMillisecond();
+    zLowerLimit = flatScaleOverTimeComponent.zLowerLimit();
+    zUpperLimit = flatScaleOverTimeComponent.zUpperLimit();
   }
   
   @Override public ComponentType getComponentType()
@@ -1761,6 +1834,25 @@ public class ScaleOverTimeComponent extends Component
     
     //actionBuffer.add(scaleAction);
   }
+  
+  @Override public String toString()
+  {
+    String stringScaleOverTimeComponent = new String();
+    stringScaleOverTimeComponent += "======= ScaleOverTimeComponent =======\n";
+    stringScaleOverTimeComponent += "\txScalingUp: " + xScalingUp + "\n";
+    stringScaleOverTimeComponent += "\txScalePerMillisecond: " + xScalePerMillisecond + "\n";
+    stringScaleOverTimeComponent += "\txLowerLimit: " + xLowerLimit + "\n";
+    stringScaleOverTimeComponent += "\txUpperLimit: " + xUpperLimit + "\n";
+    stringScaleOverTimeComponent += "\tyScalingUp: " + yScalingUp + "\n";
+    stringScaleOverTimeComponent += "\tyScalePerMillisecond: " + yScalePerMillisecond + "\n";
+    stringScaleOverTimeComponent += "\tyLowerLimit: " + yLowerLimit + "\n";
+    stringScaleOverTimeComponent += "\tyUpperLimit: " + yUpperLimit + "\n";
+    stringScaleOverTimeComponent += "\tzScalingUp: " + zScalingUp + "\n";
+    stringScaleOverTimeComponent += "\tzScalePerMillisecond: " + zScalePerMillisecond + "\n";
+    stringScaleOverTimeComponent += "\tzLowerLimit: " + zLowerLimit + "\n";
+    stringScaleOverTimeComponent += "\tzUpperLimit: " + zUpperLimit + "\n";
+    return stringScaleOverTimeComponent;
+  }
 }
 
 
@@ -1800,42 +1892,40 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
   return component;
 }
 
-public IComponent deserializeComponent(GameObject gameObject, JSONObject jsonComponent)
+public IComponent deserializeComponent(GameObject gameObject, FlatComponentTable flatComponentTable)
 {
   IComponent component = null;
+  com.google.flatbuffers.Table componentTable = null;
   
-  ComponentType componentType = componentTypeStringToEnum(jsonComponent.getString("componentType"));
-  
-  switch (componentType)
+  switch (flatComponentTable.componentType())
   {
-    case RENDER:
+    case FlatComponentUnion.FlatRenderComponent:
       component = new RenderComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatRenderComponent());
       break;
       
-    case PERSPECTIVE_CAMERA:
-      component = new PerspectiveCameraComponent(gameObject);
-      break;
-      
-    case TRANSLATE_OVER_TIME:
+    case FlatComponentUnion.FlatTranslateOverTimeComponent:
       component = new TranslateOverTimeComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatTranslateOverTimeComponent());
       break;
       
-    case ROTATE_OVER_TIME:
+    case FlatComponentUnion.FlatRotateOverTimeComponent:
       component = new RotateOverTimeComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatRotateOverTimeComponent());
       break;
       
-    case SCALE_OVER_TIME:
+    case FlatComponentUnion.FlatScaleOverTimeComponent:
       component = new ScaleOverTimeComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatScaleOverTimeComponent());
       break;
       
     default:
-      println("Assertion: ComponentType not added to deserializeComponent.");
       assert(false);
   }
   
-  if (component != null)
+  if (component != null && componentTable != null)
   {
-    component.deserialize(jsonComponent);
+    component.deserialize(componentTable);
   }
   
   return component;
@@ -2080,8 +2170,8 @@ interface IGameObject
   public void fromXML(String fileName);
   
   // Convert to and construct from a JSON object. This includes all current object state to make networking possible.
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonGameObject);
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatGameObject flatGameObject);
   
   // Every instantiated Game Object has a unique ID.
   public int getUID();
@@ -2112,6 +2202,8 @@ interface IGameObject
   
   // Updates and renders the Game Object over the given time in milliseconds.
   public void update(int deltaTime);
+  
+  public String toString();
 }
 
 // This is basically a convenience container class for GameObjects that can load levels,
@@ -2121,9 +2213,9 @@ interface IGameObjectManager
   // Creates a level full of GameObjects based on a Level XML file.
   public void fromXML(String fileName);
   
-  // Convert to and construct a whole level from a JSON object. This includes all current objects' state to make networking possible.
-  public JSONArray serialize();
-  public void deserialize(JSONArray jsonGameWorld);
+  // Convert to and construct a whole level from a flat object. This includes all current objects' state to make networking possible.
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatGameWorld flatGameWorld);
   
   public void update(int deltaTime);
   
@@ -2133,6 +2225,8 @@ interface IGameObjectManager
   public HashMap<Integer, IGameObject> getGameObjects();
   public void                   removeGameObject(int UID);
   public void                   clearGameObjects();
+  
+  public String toString();
 }
 
 //---------------------------------------------------------------
@@ -2168,7 +2262,7 @@ public class GameObject implements IGameObject
     components = new ArrayList<IComponent>();
   }
   
-  public GameObject(IGameObjectManager _owner, JSONObject jsonGameObject)
+  public GameObject(IGameObjectManager _owner, FlatGameObject flatGameObject)
   {
     owner = _owner;
     
@@ -2178,7 +2272,7 @@ public class GameObject implements IGameObject
     
     components = new ArrayList<IComponent>();
     
-    deserialize(jsonGameObject);
+    deserialize(flatGameObject);
   }
   
   @Override public void destroy()
@@ -2206,69 +2300,48 @@ public class GameObject implements IGameObject
     }
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonGameObject = new JSONObject();
+    int tagOffset = builder.createString(tag);
     
-    jsonGameObject.setInt("UID", UID);
-    jsonGameObject.setString("tag", tag);
-    
-    JSONObject jsonTranslation = new JSONObject();
-    jsonTranslation.setFloat("x", translation.x);
-    jsonTranslation.setFloat("y", translation.y);
-    jsonTranslation.setFloat("z", translation.z);
-    jsonGameObject.setJSONObject("translation", jsonTranslation);
-    
-    JSONObject jsonRotation = new JSONObject();
-    jsonRotation.setFloat("x", rotation.x);
-    jsonRotation.setFloat("y", rotation.y);
-    jsonRotation.setFloat("z", rotation.z);
-    jsonGameObject.setJSONObject("rotation", jsonRotation);
-    
-    JSONObject jsonScale = new JSONObject();
-    jsonScale.setFloat("x", scale.x);
-    jsonScale.setFloat("y", scale.y);
-    jsonScale.setFloat("z", scale.z);
-    jsonGameObject.setJSONObject("scale", jsonScale);
-    
-    JSONArray jsonComponents = new JSONArray();
-    for (IComponent component : components)
+    int[] flatComponents = new int[components.size()];
+    for (int i = 0; i < components.size(); i++)
     {
-      JSONObject jsonComponent = component.serialize();
-      jsonComponent.setString("componentType", componentTypeEnumToString(component.getComponentType()));
-      jsonComponents.append(jsonComponent);
+      flatComponents[i] = components.get(i).serialize(builder);
     }
-    jsonGameObject.setJSONArray("components", jsonComponents);
+    int flatComponentsVector = FlatGameObject.createComponentTablesVector(builder, flatComponents);
     
-    return jsonGameObject;
+    FlatGameObject.startFlatGameObject(builder);
+    FlatGameObject.addUid(builder, UID);
+    FlatGameObject.addTag(builder, tagOffset);
+    FlatGameObject.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
+    FlatGameObject.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
+    FlatGameObject.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
+    FlatGameObject.addComponentTables(builder, flatComponentsVector);
+    
+    return FlatGameObject.endFlatGameObject(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonGameObject)
+  @Override public void deserialize(FlatGameObject flatGameObject)
   {
     destroy();
     
-    UID = jsonGameObject.getInt("UID");
-    tag = jsonGameObject.getString("tag");
+    UID = flatGameObject.uid();
+    tag = flatGameObject.tag();
     
-    JSONObject jsonTranslation = jsonGameObject.getJSONObject("translation");
-    translation.x = jsonTranslation.getFloat("x");
-    translation.y = jsonTranslation.getFloat("y");
-    translation.z = jsonTranslation.getFloat("z");
+    FlatVec3 flatTranslation = flatGameObject.translation();
+    translation = new PVector(flatTranslation.x(), flatTranslation.y(), flatTranslation.z());
     
-    JSONObject jsonRotation = jsonGameObject.getJSONObject("rotation");
-    rotation.x = jsonRotation.getFloat("x");
-    rotation.y = jsonRotation.getFloat("y");
-    rotation.z = jsonRotation.getFloat("z");
+    FlatVec3 flatRotation = flatGameObject.rotation();
+    rotation = new PVector(flatRotation.x(), flatRotation.y(), flatRotation.z());
     
-    JSONObject jsonScale = jsonGameObject.getJSONObject("scale");
-    scale.x = jsonScale.getFloat("x");
-    scale.y = jsonScale.getFloat("y");
-    scale.z = jsonScale.getFloat("z");
+    FlatVec3 flatScale = flatGameObject.scale();
+    scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
     
-    JSONArray jsonComponents = jsonGameObject.getJSONArray("components");
-    for (int i = 0; i < jsonComponents.size(); i++)
+    for (int i = 0; i < flatGameObject.componentTablesLength(); ++i)
     {
-      components.add(deserializeComponent(this, jsonComponents.getJSONObject(i)));
+      FlatComponentTable flatComponentTable = flatGameObject.componentTables(i);
+      components.add(deserializeComponent(this, flatComponentTable));
     }
   }
   
@@ -2356,10 +2429,25 @@ public class GameObject implements IGameObject
     {
       component.update(deltaTime);
     }
+  }
+  
+  @Override public String toString()
+  {
+    String stringGameObject = new String();
     
-    //println("Translation: (" + translation.x + ", " + translation.y + ", " + translation.z + ")");
-    //println("Rotation: (" + rotation.x + ", " + rotation.y + ", " + rotation.z + ")");
-    //println("Scale: (" + scale.x + ", " + scale.y + ", " + scale.z + ")");
+    stringGameObject += "========== GameObject ==========\n";
+    stringGameObject += "UID: " + UID + "\t\t tag: " + tag + "\n";
+    stringGameObject += "Translation: (" + translation.x + ", " + translation.y + ", " + translation.z + ")\n";
+    stringGameObject += "Rotation: (" + rotation.x + ", " + rotation.y + ", " + rotation.z + ")\n";
+    stringGameObject += "Scale: (" + scale.x + ", " + scale.y + ", " + scale.z + ")\n";
+    stringGameObject += "Components: \n";
+    
+    for (IComponent component : components)
+    {
+      stringGameObject += component.toString();
+    }
+    
+    return stringGameObject;
   }
 }
 
@@ -2423,27 +2511,35 @@ public class GameObjectManager implements IGameObjectManager
     }
   }
   
-  @Override public JSONArray serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONArray jsonGameWorld = new JSONArray();
+    int i = 0;
+    int[] flatGameObjects = new int[gameObjects.size()];
     
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
       
-      jsonGameWorld.append(gameObject.serialize());
+      flatGameObjects[i] = gameObject.serialize(builder);
+      i++;
     }
     
-    return jsonGameWorld;
+    int flatGameObjectsVector = FlatGameWorld.createGameObjectsVector(builder, flatGameObjects);
+    
+    FlatGameWorld.startFlatGameWorld(builder);
+    FlatGameWorld.addGameObjects(builder, flatGameObjectsVector);
+    
+    return FlatGameWorld.endFlatGameWorld(builder);
   }
   
-  @Override public void deserialize(JSONArray jsonGameWorld)
+  @Override public void deserialize(FlatGameWorld flatGameWorld)
   {
     clearGameObjects();
     
-    for (int i = 0; i < jsonGameWorld.size(); i++)
+    for (int i = 0; i < flatGameWorld.gameObjectsLength(); i++)
     {
-      IGameObject gameObject = new GameObject(this, jsonGameWorld.getJSONObject(i));
+      FlatGameObject flatGameObject = flatGameWorld.gameObjects(i);
+      IGameObject gameObject = new GameObject(this, flatGameObject);
       gameObjects.put(gameObject.getUID(), gameObject);
     }
   }
@@ -2526,6 +2622,22 @@ public class GameObjectManager implements IGameObjectManager
     }
     gameObjects.clear();
   }
+  
+  @Override public String toString()
+  {
+    String stringGameWorld = new String();
+    
+    stringGameWorld += "======== Game World =======\n";
+    stringGameWorld += "GameObjects: \n";
+    
+    for (Map.Entry entry : gameObjects.entrySet())
+    {
+      IGameObject gameObject = (IGameObject)entry.getValue();
+      stringGameWorld += gameObject.toString();
+    }
+    
+    return stringGameWorld;
+  }
 }
  //========================================================================================
 // Author: David Hanna
@@ -2607,13 +2719,9 @@ public class GameState_ChooseClientServerState extends GameState
       {
         gameStateController.pushState(new GameState_ServerState());
       }
-      else if (key == '1')
+      else if (key == 'c')
       {
-        gameStateController.pushState(new GameState_ClientState1());
-      }
-      else if (key == '2')
-      {
-        gameStateController.pushState(new GameState_ClientState2());
+        gameStateController.pushState(new GameState_ClientState());
       }
     }
   }
@@ -2625,186 +2733,139 @@ public class GameState_ChooseClientServerState extends GameState
 
 public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
-  private int waitTime;
-  
   public GameState_ServerState()
   {
     super();
-    
-    waitTime = 1000;
   }
   
   @Override public void onEnter()
   {
     sharedGameObjectManager.fromXML("levels/shared_level.xml");
     
-    mainServer = new MSServer(5204, this);
-    if (mainServer.begin())
-    {
-      println("Server started.");
-    }
-    else
-    {
-      println("WARNING: Failed to start server.");
-    }
+    mainServer = new MSServer(this);
+    mainServer.begin();
   }
   
   @Override public void update(int deltaTime)
   {
     sharedGameObjectManager.update(deltaTime);
     scene.render();
-    waitTime -= deltaTime;
-    if (waitTime <= 0)
-    {
-      mainServer.update();
-      mainServer.write(sharedGameObjectManager.serialize().toString());
-      waitTime += 1000;
-    }
+    //mainServer.update();
+    sendWorldToAllClients();
   }
   
   @Override public void onExit()
   {
     mainServer.end();
+    mainServer = null;
   }
   
-  @Override public String getInitializationMessage()
+  @Override public void handleClientMessage(ByteBuffer clientMessage)
   {
-    return "";
   }
   
-  @Override public void handleClientMessage(String clientMessage)
+  private void sendWorldToAllClients()
   {
-    JSONArray jsonActionList = parseJSONArray(clientMessage);
+    FlatBufferBuilder builder = new FlatBufferBuilder(0);
     
-    if (jsonActionList != null)
-    {
-      for (int i = 0; i < jsonActionList.size(); i++)
-      {
-        IAction action = deserializeAction(jsonActionList.getJSONObject(i));
-        action.apply();
-      }
-    }
-    else
-    {
-      println("Failed to parse into JSONArray: " + clientMessage);
-    }
+    int flatGameWorld = sharedGameObjectManager.serialize(builder);
+    
+    FlatMessageHeader.startFlatMessageHeader(builder);
+    FlatMessageHeader.addClientID(builder, 0);
+    int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
+    
+    FlatMessageBodyTable.startFlatMessageBodyTable(builder);
+    FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatGameWorld);
+    FlatMessageBodyTable.addBody(builder, flatGameWorld);
+    int flatMessageBodyTable = FlatMessageBodyTable.endFlatMessageBodyTable(builder);
+    
+    FlatMessage.startFlatMessage(builder);
+    FlatMessage.addHeader(builder, flatMessageHeader);
+    FlatMessage.addBodyTable(builder, flatMessageBodyTable);
+    FlatMessage.finishFlatMessageBuffer(builder, FlatMessage.endFlatMessage(builder));
+    
+    mainServer.write(builder.dataBuffer());
   }
 }
 
-public class GameState_ClientState1 extends GameState implements IClientCallbackHandler
+public class GameState_ClientState extends GameState implements IClientCallbackHandler
 {
-  public GameState_ClientState1()
+  private int clientID;
+  
+  public GameState_ClientState()
   {
     super();
+    
+    clientID = -1;
   }
   
   @Override public void onEnter()
   {
     localGameObjectManager.fromXML("levels/client_level_1.xml");
     
-    mainClient = new MSClient("127.0.0.1", 5204, this);
-    if (mainClient.connect())
-    {
-      println("Client connected.");
-    }
-    else
-    {
-      println("Client failed to connect.");
-    }
-  }
-  
-  @Override public void update(int deltaTime)
-  {
-    mainClient.update();
-    synchronized(sharedGameObjectManager)
-    {
-      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
-      {
-        IGameObject gameObject = (IGameObject)entrySet.getValue();
-        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
-      }
-      scene.render();
-    }
-  }
-  
-  @Override public void onExit()
-  {
-    mainClient.disconnect();
-    mainClient = null;
-  }
-  
-  @Override public void handleServerMessage(String serverMessage)
-  {
-    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
-    if (jsonGameWorld != null)
-    {
-      synchronized(sharedGameObjectManager)
-      {
-        sharedGameObjectManager.deserialize(jsonGameWorld);
-      }
-    }
-    else
-    {
-      println("Failed to parse server message into JSON form: " + serverMessage);
-    }
-  }
-}
-
-public class GameState_ClientState2 extends GameState implements IClientCallbackHandler
-{
-  public GameState_ClientState2()
-  {
-    super();
-  }
-  
-  @Override public void onEnter()
-  {
-    localGameObjectManager.fromXML("levels/client_level_2.xml");
+    mainClient = new MSClient(this);
     
-    mainClient = new MSClient("127.0.0.1", 5204, this);
-    if (mainClient.connect())
+    if (!mainClient.connect())
     {
-      println("Client connected.");
-    }
-    else
-    {
-      println("Client failed to connect.");
+      println("Exiting.");
+      exit();
     }
   }
   
   @Override public void update(int deltaTime)
   {
-    mainClient.update();
+    if (mainClient != null && mainClient.isConnected())
+    {
+      mainClient.update();
+      //sendClientActionsToServer();
+    }
+    
     synchronized(sharedGameObjectManager)
     {
-      for (Map.Entry entrySet : sharedGameObjectManager.getGameObjects().entrySet())
-      {
-        IGameObject gameObject = (IGameObject)entrySet.getValue();
-        gameObject.getComponent(ComponentType.RENDER).update(deltaTime);
-      }
       scene.render();
     }
   }
   
   @Override public void onExit()
   {
-    mainClient.disconnect();
-    mainClient = null;
+    if (mainClient != null)
+    {
+      mainClient.disconnect();
+      mainClient = null;
+    }
   }
   
-  @Override public void handleServerMessage(String serverMessage)
+  @Override public void handleServerMessage(ByteBuffer serverMessage)
   {
-    JSONArray jsonGameWorld = JSONArray.parse(serverMessage);
-    if (jsonGameWorld != null)
+    FlatMessage flatServerMessage = FlatMessage.getRootAsFlatMessage(serverMessage);
+    int messageTargetID = flatServerMessage.header().clientID();
+    
+    if (messageTargetID == 0 || messageTargetID == clientID)
     {
-      synchronized(sharedGameObjectManager)
+      if (flatServerMessage.bodyTable().bodyType() == FlatMessageBodyUnion.FlatGameWorld)
       {
-        sharedGameObjectManager.deserialize(jsonGameWorld);
+        FlatGameWorld flatGameWorld = (FlatGameWorld)flatServerMessage.bodyTable().body(new FlatGameWorld());
+        
+        synchronized(sharedGameObjectManager)
+        {
+          sharedGameObjectManager.deserialize(flatGameWorld);
+          //println(sharedGameObjectManager);
+        }
       }
-    }
-    else
-    {
-      println("Failed to parse server message into JSON form: " + serverMessage);
+      //else if (flatServerMessage.bodyTable().bodyType() == FlatMessageBodyUnion.FlatServerInitMessage)
+      //{
+      //  FlatServerInitMessage flatServerInitMessage = (FlatServerInitMessage)flatServerMessage.body().body(new FlatServerInitMessage());
+        
+      //  outgoingClient = new MSClient(flatServerInitMessage.ip(), flatServerInitMessage.port(), this);
+      //  if (outgoingClient.connect())
+      //  {
+      //    println("Outgoing Client connected.");
+      //  }
+      //  else
+      //  {
+      //    println("Outgoing Client failed to connect.");
+      //  }
+      //}
     }
   }
 }
@@ -2880,8 +2941,6 @@ public class GameStateController implements IGameStateController
 public interface IMaterial
 {
   public int        fromMTL(String[] mtlFile, int lineIndex);
-  public JSONObject serialize();
-  public void       deserialize(JSONObject jsonMaterial);
   public String     getName();
   public PVector    getAmbientReflect();
   public PVector    getDiffuseReflect();
@@ -2898,8 +2957,9 @@ public interface IMaterialLib
   public IMaterial getMaterial(String name);
 }
 
-public interface IMaterialLibManager
+public interface IMaterialManager
 {
+  public PImage getTexture(String name);
   public IMaterialLib getMaterialLib(String mtlFileName);
 }
 
@@ -2927,11 +2987,6 @@ public class Material implements IMaterial
     ambientReflect = new PVector();
     diffuseReflect = new PVector();
     specularReflect = new PVector();
-  }
-  
-  public Material(JSONObject jsonMaterial)
-  {
-    deserialize(jsonMaterial);
   }
   
   // Returns the line index this method stopped parsing (the end of the material).
@@ -2975,7 +3030,7 @@ public class Material implements IMaterial
           
         case "map_Kd":
           textureFileName = words[1];
-          texture = textureManager.getTexture(textureFileName);
+          texture = materialManager.getTexture(textureFileName);
           break;
           
         case "newmtl":
@@ -2984,61 +3039,6 @@ public class Material implements IMaterial
     }
     
     return lineIndex;
-  }
-  
-  @Override public JSONObject serialize()
-  {
-    JSONObject jsonMaterial = new JSONObject();
-    
-    jsonMaterial.setString("name", name);
-    
-    JSONObject jsonAmbientReflect = new JSONObject();
-    jsonAmbientReflect.setFloat("r", ambientReflect.x);
-    jsonAmbientReflect.setFloat("g", ambientReflect.y);
-    jsonAmbientReflect.setFloat("b", ambientReflect.z);
-    jsonMaterial.setJSONObject("ambientReflect", jsonAmbientReflect);
-    
-    JSONObject jsonDiffuseReflect = new JSONObject();
-    jsonDiffuseReflect.setFloat("r", diffuseReflect.x);
-    jsonDiffuseReflect.setFloat("g", diffuseReflect.y);
-    jsonDiffuseReflect.setFloat("b", diffuseReflect.z);
-    jsonMaterial.setJSONObject("diffuseReflect", jsonDiffuseReflect);
-    
-    JSONObject jsonSpecularReflect = new JSONObject();
-    jsonSpecularReflect.setFloat("r", specularReflect.x);
-    jsonSpecularReflect.setFloat("g", specularReflect.y);
-    jsonSpecularReflect.setFloat("b", specularReflect.z);
-    jsonMaterial.setJSONObject("specularReflect", jsonSpecularReflect);
-    
-    jsonMaterial.setFloat("specularExponent", specularExponent);
-    
-    jsonMaterial.setFloat("dissolve", dissolve);
-    
-    jsonMaterial.setString("textureFileName", textureFileName);
-    
-    return jsonMaterial;
-  }
-  
-  @Override public void deserialize(JSONObject jsonMaterial)
-  {
-    name = jsonMaterial.getString("name");
-        
-    JSONObject jsonAmbientReflect = jsonMaterial.getJSONObject("ambientReflect");
-    ambientReflect = new PVector(jsonAmbientReflect.getFloat("r"), jsonAmbientReflect.getFloat("g"), jsonAmbientReflect.getFloat("b"));
-    
-    JSONObject jsonDiffuseReflect = jsonMaterial.getJSONObject("diffuseReflect");
-    diffuseReflect = new PVector(jsonDiffuseReflect.getFloat("r"), jsonDiffuseReflect.getFloat("g"), jsonDiffuseReflect.getFloat("b"));
-    
-    JSONObject jsonSpecularReflect = jsonMaterial.getJSONObject("specularReflect");
-    specularReflect = new PVector(jsonSpecularReflect.getFloat("r"), jsonSpecularReflect.getFloat("g"), jsonSpecularReflect.getFloat("b"));
-    
-    specularExponent = jsonMaterial.getFloat("specularExponent");
-    
-    dissolve = jsonMaterial.getFloat("dissolve");
-    
-    textureFileName = jsonMaterial.getString("textureFileName");
-    
-    texture = textureManager.getTexture(textureFileName);
   }
   
   @Override public String getName()
@@ -3120,13 +3120,24 @@ public class MaterialLib implements IMaterialLib
   }
 }
 
-public class MaterialLibManager implements IMaterialLibManager
+public class MaterialManager implements IMaterialManager
 {
+  private HashMap<String, PImage> textures;
   private HashMap<String, IMaterialLib> materialLibs;
   
-  public MaterialLibManager()
+  public MaterialManager()
   {
+    textures = new HashMap<String, PImage>();
     materialLibs = new HashMap<String, IMaterialLib>();
+  }
+  
+  @Override public PImage getTexture(String name)
+  {
+    if (!textures.containsKey(name))
+    {
+      textures.put(name, loadImage(name));
+    }
+    return textures.get(name);
   }
   
   @Override public IMaterialLib getMaterialLib(String mtlFileName)
@@ -3159,13 +3170,12 @@ public interface IClient
   public void update();
   public void disconnect();
   public boolean isConnected();
-  public void write(String message);
-  public void handleClientEvent(String serverBytes);
+  public void write(ByteBuffer message);
 }
 
 public interface IClientCallbackHandler
 {
-  public void handleServerMessage(String serverMessage);
+  public void handleServerMessage(ByteBuffer serverMessage);
 }
 
 public interface IServer
@@ -3174,98 +3184,334 @@ public interface IServer
   public void update();
   public void end();
   public boolean isActive();
-  public void write(String message);
-  public void handleServerEvent(Client pClient);
+  public void write(ByteBuffer message);
+  public void handleServerEvent(Server p_pServer, Client p_pClient);
 }
 
 public interface IServerCallbackHandler
 {
-  public String getInitializationMessage();
-  public void handleClientMessage(String clientMessage);
+  public void handleClientMessage(ByteBuffer clientMessage);
 }
 
 //----------------------------------------------------------------
 // IMPLEMENTATION
 //----------------------------------------------------------------
 
-public final String BEGIN_TOKEN = ":::B:::";
-public final String END_TOKEN = ":::E:::";
+public final String MAIN_SERVER_IP = "127.0.0.1";
+public final int MAIN_SERVER_PORT = 5204;
 
-public void clientEvent(Client pClient)
+public final byte[] BEGIN_SEQUENCE = { 55, -45, 95, -44, 28, -74, -65, -66 };
+public final byte[] END_SEQUENCE = { -72, 107, -85, -117, 45, -123, 69, 20 };
+public final byte[] SUB_SERVER_CONNECT_SEQUENCE = { 108, 85, 57, 60, 93, 0, -15, -113 };
+public final int TIME_OUT_LIMIT = 6000;
+
+
+public class CircularByteBuffer
 {
-  if (mainClient != null)
+  protected byte[] buffer;
+  protected int bufferHead;
+  protected int bufferTail;
+  
+  public CircularByteBuffer(int size)
   {
-    while (pClient.available() > 0)
+    buffer = new byte[size];
+    bufferHead = 0;
+    bufferTail = 0;
+  }
+  
+  synchronized public void append(byte[] bytes, int length)
+  {
+    for (int i = 0; i < length; i++)
     {
-      mainClient.handleClientEvent(pClient.readString());
+      buffer[bufferTail] = bytes[i];
+      bufferTail = (bufferTail + 1) % buffer.length;
+      assert(bufferTail != bufferHead);
     }
+  }
+  
+  synchronized public void advanceHead(int length)
+  {
+    bufferHead = (bufferHead + length) % buffer.length;
+  }
+  
+  synchronized public void clear()
+  {
+    bufferHead = bufferTail;
+  }
+  
+  synchronized public int size()
+  {
+    if (bufferTail >= bufferHead)
+    {
+      return bufferTail - bufferHead;
+    }
+    else
+    {
+      return buffer.length + bufferTail - bufferHead;
+    }
+  }
+  
+  synchronized public byte[] getCurrentContents()
+  {
+    return getCurrentContents(size());
+  }
+  
+  synchronized public byte[] getCurrentContents(int maxLength)
+  {
+    int contentsLength = min(size(), maxLength);
+    byte[] contents = new byte[contentsLength];
+    
+    for (int i = 0; i < contentsLength; i++)
+    {
+      contents[i] = buffer[(bufferHead + i) % buffer.length];
+    }
+    
+    return contents;
+  }
+  
+  synchronized public boolean beginsWith(byte[] sequence)
+  {
+    for (int i = 0; i < sequence.length; i++)
+    {
+      int pos = (bufferHead + i) % buffer.length;
+      
+      if ((pos == (bufferTail + 1) % buffer.length) || buffer[pos] != sequence[i])
+      {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  synchronized public int indexOf(byte[] sequence)
+  {
+    int sequenceIndex = -1;
+    
+    byte[] contents = getCurrentContents();
+    
+    int i = 0;
+    
+    while (sequenceIndex == -1 && i <= contents.length - sequence.length)
+    {
+      if (contents[i] == sequence[0])
+      {
+        int j = 1;
+        
+        while (sequenceIndex == -1 && i + j < contents.length && contents[i + j] == sequence[j])
+        {
+          j++;
+          
+          if (j == sequence.length)
+          {
+            sequenceIndex = i;
+          }
+        }
+      }
+      
+      i++;
+    }
+    
+    return sequenceIndex;
   }
 }
 
+
+public class NetworkCircularByteBuffer extends CircularByteBuffer
+{
+  private static final int TEMP_BUFFER_SIZE = 1024;
+  
+  private byte[] tempBuffer;
+  private boolean beginSequenceChecked;
+  
+  public NetworkCircularByteBuffer(int size)
+  {
+    super(size);
+    
+    tempBuffer = new byte[TEMP_BUFFER_SIZE];
+    beginSequenceChecked = false;
+  }
+  
+  synchronized public byte[] parseMessageLoop(Client pClient)
+  {
+    if (pClient.available() > 0)
+    {
+      int length = pClient.readBytes(tempBuffer);
+      
+      append(tempBuffer, length);
+    }
+    
+    if (!beginSequenceChecked)
+    {
+      if (size() >= BEGIN_SEQUENCE.length)
+      {
+        beginSequenceChecked = beginsWith(BEGIN_SEQUENCE);
+        
+        if (beginSequenceChecked)
+        {
+          advanceHead(BEGIN_SEQUENCE.length);
+        }
+        else
+        {
+          byte[] firstByteOfBeginSequence = { BEGIN_SEQUENCE[0] };
+          int indexOfFirstByteOfBeginSequence = indexOf(firstByteOfBeginSequence);
+          
+          if (indexOfFirstByteOfBeginSequence == -1)
+          {
+            clear();
+          }
+          else
+          {
+            advanceHead(indexOfFirstByteOfBeginSequence);
+          }
+        }
+      }
+    }
+    
+    if (beginSequenceChecked)
+    {
+      int endSequenceIndex = indexOf(END_SEQUENCE);
+      
+      if (endSequenceIndex != -1)
+      {
+        byte[] message = getCurrentContents(endSequenceIndex);
+        advanceHead(message.length + END_SEQUENCE.length);
+        beginSequenceChecked = false;
+        
+        return message;
+      }
+    }
+    
+    return null;
+  }
+}
+
+
 public class MSClient implements IClient
 {
-  private String ipAddress;
-  private int port;
-  private IClientCallbackHandler handler;
-  private Client pClient;
-  private String buffer;
-  private int clientID;
-  private int messageID;
+  private static final int BUFFER_SIZE = 102400;
   
-  public MSClient(String _ipAddress, int _port, IClientCallbackHandler _handler)
+  private Client pClient;
+  private NetworkCircularByteBuffer circularBuffer;
+  private IClientCallbackHandler handler;
+  
+  
+  public MSClient(IClientCallbackHandler _handler)
   {
-    ipAddress = _ipAddress;
-    port = _port;
-    handler = _handler;
     pClient = null;
-    buffer = "";
-    clientID = 0;
-    messageID = 0;
+    circularBuffer = new NetworkCircularByteBuffer(BUFFER_SIZE);
+    handler = _handler;
   }
   
   @Override public boolean connect()
   {
-    pClient = new Client(mainObject, ipAddress, port);
-    if (isConnected())
+    pClient = new Client(mainObject, MAIN_SERVER_IP, MAIN_SERVER_PORT);
+    
+    if (!pClient.active())
     {
-      return true;
-    }
-    else
-    {
+      println("Failed to connect to main server.");
       pClient = null;
       return false;
     }
+    
+    boolean connected = redirectConnectionToSubServer();
+    
+    if (!connected)
+    {
+      println("Failed to connect to sub server.");
+      return false;
+    }
+    
+    println("Client connected.");
+    return true;
+  }
+  
+  private boolean redirectConnectionToSubServer()
+  {
+    int initialTime = millis();
+    int currentTime = initialTime;
+    
+    while (currentTime - initialTime < TIME_OUT_LIMIT)
+    {
+      byte[] message = circularBuffer.parseMessageLoop(pClient);
+      
+      if (message != null && connectToSubServerMessageCheck(message))
+      {
+        int subServerPort = parsePort(message);
+        
+        pClient.stop();
+        pClient = new Client(mainObject, MAIN_SERVER_IP, subServerPort);
+        
+        if (pClient.active())
+        {
+          return true;
+        }
+        else
+        {
+          println("Failed to connect to given sub server port.");
+          pClient = null;
+          return false;
+        }
+      }
+      
+      currentTime = millis();
+    }
+    
+    pClient = null;
+    return false;
+  }
+  
+  private boolean connectToSubServerMessageCheck(byte[] message)
+  {
+    if (message.length < SUB_SERVER_CONNECT_SEQUENCE.length)
+    {
+      return false;
+    }
+    
+    for (int i = 0; i < SUB_SERVER_CONNECT_SEQUENCE.length; i++)
+    {
+      if (message[i] != SUB_SERVER_CONNECT_SEQUENCE[i])
+      {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  private int parsePort(byte[] message)
+  {
+    byte[] portBytes = new byte[4];
+    
+    portBytes[0] = message[SUB_SERVER_CONNECT_SEQUENCE.length];
+    portBytes[1] = message[SUB_SERVER_CONNECT_SEQUENCE.length + 1];
+    portBytes[2] = message[SUB_SERVER_CONNECT_SEQUENCE.length + 2];
+    portBytes[3] = message[SUB_SERVER_CONNECT_SEQUENCE.length + 3];
+    
+    ByteBuffer portByteBuffer = ByteBuffer.wrap(portBytes);
+    
+    return portByteBuffer.getInt();
   }
   
   @Override public void update()
   {
-    if (isConnected())
+    byte[] message = null;
+    ArrayList<byte[]> messageList = new ArrayList<byte[]>();
+    
+    do
     {
-      synchronized(this)
+      message = circularBuffer.parseMessageLoop(pClient);
+      
+      if (message != null)
       {
-        if (!buffer.startsWith(BEGIN_TOKEN) && buffer.length() > BEGIN_TOKEN.length())
-        {
-          int beginTokenIndex = buffer.indexOf(BEGIN_TOKEN);
-          if (beginTokenIndex != -1)
-          {
-            buffer = buffer.substring(beginTokenIndex, buffer.length());
-          }
-        }
-        
-        while (buffer.startsWith(BEGIN_TOKEN))
-        {
-          int endTokenIndex = buffer.indexOf(END_TOKEN);
-          if (endTokenIndex == -1)
-          {
-            break;
-          }
-          else
-          {
-            handler.handleServerMessage(buffer.substring(BEGIN_TOKEN.length(), endTokenIndex));
-            buffer = buffer.substring(endTokenIndex + END_TOKEN.length(), buffer.length());
-          }
-        }
+        messageList.add(message);
       }
+    }
+    while (message != null);
+    
+    if (messageList.size() > 0)
+    {
+      handler.handleServerMessage(ByteBuffer.wrap(messageList.get(messageList.size() - 1)));
     }
   }
   
@@ -3283,117 +3529,78 @@ public class MSClient implements IClient
     return pClient != null && pClient.active();
   }
   
-  @Override public void write(String message)
+  @Override public void write(ByteBuffer message)
   {
-    JSONObject jsonMessageHeader = new JSONObject();
-    jsonMessageHeader.setInt("clientID", clientID);
-    jsonMessageHeader.setInt("messageID", messageID++);
-    
-    JSONObject jsonMessage = new JSONObject();
-    jsonMessage.setJSONObject("header", jsonMessageHeader);
-    jsonMessage.setString("body", message);
-    
     if (isConnected())
     {
-      pClient.write(BEGIN_TOKEN + jsonMessage.toString() + END_TOKEN);
-    }
-  }
-  
-  @Override public void handleClientEvent(String serverBytes)
-  {
-    synchronized(this)
-    {
-      buffer += serverBytes;
+      byte[] bytes = new byte[message.remaining() + BEGIN_SEQUENCE.length + END_SEQUENCE.length];
+      for (int i = 0; i < BEGIN_SEQUENCE.length; i++)
+      {
+        bytes[i] = BEGIN_SEQUENCE[i];
+      }
+      message.get(bytes, BEGIN_SEQUENCE.length, message.remaining());
+      for (int i = 0; i < END_SEQUENCE.length; i++)
+      {
+        bytes[bytes.length - i - 1] = END_SEQUENCE[END_SEQUENCE.length - i - 1];
+      }
+      
+      pClient.write(bytes);
     }
   }
 }
 
-public void serverEvent(Server pServer, Client pClient)
+public void serverEvent(Server p_pServer, Client p_pClient)
 {
-  if (mainServer != null)
-  {
-    mainServer.handleServerEvent(pClient);
-  }
+  mainServer.handleServerEvent(p_pServer, p_pClient);
 }
 
 public class MSServer implements IServer
 {
-  private int port;
-  private IServerCallbackHandler handler;
   private Server pServer;
-  private String buffer;
+  private HashMap<Server, SubServer> subServers;
+  private IServerCallbackHandler handler;
   
-  public MSServer(int _port, IServerCallbackHandler _handler)
+  private int nextSubServerPort;
+  
+  
+  public MSServer(IServerCallbackHandler _handler)
   {
-    port = _port;
-    handler = _handler;
     pServer = null;
-    buffer = "";
+    subServers = new HashMap<Server, SubServer>();
+    handler = _handler;
+    
+    nextSubServerPort = MAIN_SERVER_PORT + 1;
   }
   
   @Override public boolean begin()
   {
     if (pServer == null)
     {
-      pServer = new Server(mainObject, port);
+      pServer = new Server(mainObject, MAIN_SERVER_PORT);
       
       if (isActive())
       {
-        return true;
+        println("Server started.");
       }
       else
       {
+        println("Server failed to start.");
         pServer = null;
         return false;
       }
     }
-    else
-    {
-      println("WARNING: Trying to begin a server that is already active.");
-      return false;
-    }
+    
+    return true;
   }
   
   @Override public void update()
   {
     if (isActive())
     {
-      Client pClient = pServer.available();
-      
-      if (pClient != null)
+      for (Map.Entry entry : subServers.entrySet())
       {
-        buffer += pClient.readString();
-        
-        if (!buffer.startsWith(BEGIN_TOKEN) && buffer.length() > BEGIN_TOKEN.length())
-        {
-          println("WARNING: There has been a protocol error: " + buffer);
-          end();
-        }
-        
-        while (buffer.startsWith(BEGIN_TOKEN))
-        {
-          int endTokenIndex = buffer.indexOf(END_TOKEN);
-          if (endTokenIndex == -1)
-          {
-            break;
-          }
-          else
-          {
-            String clientMessage = buffer.substring(BEGIN_TOKEN.length(), endTokenIndex);
-            
-            JSONObject jsonClientMessage = JSONObject.parse(clientMessage);
-            JSONObject jsonHeader = jsonClientMessage.getJSONObject("header");
-            
-            int clientID = jsonHeader.getInt("clientID");
-            int messageID = jsonHeader.getInt("messageID");
-            //println("clientID: " + clientID);
-            //println("messageID: " + messageID);
-            
-            handler.handleClientMessage(jsonClientMessage.getString("body"));
-            
-            buffer = buffer.substring(endTokenIndex + END_TOKEN.length(), buffer.length());
-          }
-        }
+        SubServer subServer = (SubServer)entry.getValue();
+        subServer.update();
       }
     }
   }
@@ -3402,6 +3609,11 @@ public class MSServer implements IServer
   {
     if (isActive())
     {
+      for (Map.Entry entry : subServers.entrySet())
+      {
+        SubServer subServer = (SubServer)entry.getValue();
+        subServer.stop();
+      }
       pServer.stop();
       pServer = null;
     }
@@ -3412,17 +3624,155 @@ public class MSServer implements IServer
     return pServer != null && pServer.active();
   }
   
-  @Override public void write(String message)
+  @Override public void write(ByteBuffer message)
   {
     if (isActive())
     {
-      pServer.write(BEGIN_TOKEN + message + END_TOKEN);
+      byte[] bytes = new byte[message.remaining()];
+      message.get(bytes);
+      byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
+      
+      synchronized(this)
+      {
+        for (Map.Entry entry : subServers.entrySet())
+        {
+          SubServer subServer = (SubServer)entry.getValue();
+          subServer.write(completeMessage);
+        }
+      }
     }
   }
   
-  @Override public void handleServerEvent(Client pClient)
+  private byte[] attachBeginAndEndSequencesToMessage(byte[] message)
   {
-    pClient.write(BEGIN_TOKEN + handler.getInitializationMessage() + END_TOKEN);
+    byte[] bytes = new byte[message.length + BEGIN_SEQUENCE.length + END_SEQUENCE.length];
+    
+    for (int i = 0; i < BEGIN_SEQUENCE.length; i++)
+    {
+      bytes[i] = BEGIN_SEQUENCE[i];
+    }
+    
+    for (int i = 0; i < message.length; i++)
+    {
+      bytes[BEGIN_SEQUENCE.length + i] = message[i];
+    }
+    
+    for (int i = 0; i < END_SEQUENCE.length; i++)
+    {
+      bytes[bytes.length - i - 1] = END_SEQUENCE[END_SEQUENCE.length - i - 1];
+    }
+    
+    return bytes;
+  }
+  
+  @Override public void handleServerEvent(Server p_pServer, Client p_pClient)
+  {
+    if (p_pServer == pServer)
+    {
+      synchronized(this)
+      {
+        spawnNewSubServer(nextSubServerPort);
+        sendConnectionRedirectMessage(p_pClient);
+        nextSubServerPort++;
+      }
+    }
+    else
+    {
+      SubServer subServer = subServers.get(p_pServer);
+      if (subServer != null)
+      {
+        subServer.handleServerEvent(p_pClient);
+      }
+    }
+  }
+  
+  private void spawnNewSubServer(int nextSubServerPort)
+  {
+    SubServer subServer = new SubServer(this, nextSubServerPort);
+    subServers.put(subServer.pServer, subServer);
+  }
+  
+  private void sendConnectionRedirectMessage(Client p_pClient)
+  {
+    byte[] connectToMessage = new byte[SUB_SERVER_CONNECT_SEQUENCE.length + 4];
+    
+    for (int i = 0; i < SUB_SERVER_CONNECT_SEQUENCE.length; i++)
+    {
+      connectToMessage[i] = SUB_SERVER_CONNECT_SEQUENCE[i];
+    }
+    
+    byte[] portAsBytes = new byte[] {
+            (byte)(nextSubServerPort >>> 24),
+            (byte)(nextSubServerPort >>> 16),
+            (byte)(nextSubServerPort >>> 8),
+            (byte)nextSubServerPort
+    };
+    
+    connectToMessage[SUB_SERVER_CONNECT_SEQUENCE.length] = portAsBytes[0];
+    connectToMessage[SUB_SERVER_CONNECT_SEQUENCE.length + 1] = portAsBytes[1];
+    connectToMessage[SUB_SERVER_CONNECT_SEQUENCE.length + 2] = portAsBytes[2];
+    connectToMessage[SUB_SERVER_CONNECT_SEQUENCE.length + 3] = portAsBytes[3];
+    
+    p_pClient.write(attachBeginAndEndSequencesToMessage(connectToMessage));
+  }
+  
+  public IServerCallbackHandler getHandler()
+  {
+    return handler;
+  }
+  
+  private class SubServer
+  {
+    private static final int SUB_SERVER_BUFFER_SIZE = 10240;
+    
+    private MSServer mainServer;
+    private Client pClient;
+    private NetworkCircularByteBuffer circularBuffer;
+    
+    public Server pServer;
+    
+    
+    public SubServer(MSServer _mainServer, int subServerPort)
+    {
+      mainServer = _mainServer;
+      pClient = null;
+      circularBuffer = new NetworkCircularByteBuffer(SUB_SERVER_BUFFER_SIZE);
+      
+      pServer = new Server(mainObject, subServerPort);
+    }
+    
+    public void handleServerEvent(Client p_pClient)
+    {
+      assert(pClient == null);
+      pClient = p_pClient;
+    }
+    
+    public void update()
+    {
+      byte[] message = circularBuffer.parseMessageLoop(pClient);
+      if (message != null)
+      {
+        mainServer.getHandler().handleClientMessage(ByteBuffer.wrap(message));
+      }
+    }
+    
+    public void write(byte[] message)
+    {
+      if (isConnected())
+      {
+        pClient.write(message);
+      }
+    }
+    
+    public boolean isConnected()
+    {
+      return pClient != null && pClient.active();
+    }
+    
+    public void stop()
+    {
+      pServer.stop();
+    }
   }
 }
 //======================================================================================================
@@ -3486,26 +3836,19 @@ public interface IOrthographicCamera extends ICamera
 public interface ISprite
 {
   public String getName();
-  
-  public PVector getTranslation();
-  public float getRotation();
-  public PVector getScale();
-  
-  public void setTranslation(PVector translation);
-  public void setRotation(float rotation);
-  public void setScale(PVector scale);
-  
+  //public void from***(String fileName);
   public void render();
-  
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonSprite);
 }
 
-public interface IModel
+public interface ISpriteManager
 {
-  public void fromOBJ(String objFileName);
-  
-  public String getName();
+  public ISprite getSprite(String name);
+  public void free();
+}
+
+public interface ISpriteInstance
+{
+  public ISprite getSprite();
   
   public PVector getTranslation();
   public PVector getRotation();
@@ -3517,8 +3860,39 @@ public interface IModel
   
   public void render();
   
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonModel);
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatSprite flatSprite);
+}
+
+public interface IModel
+{
+  public String getName();
+  public void fromOBJ(String objFileName);
+  public void render();
+}
+
+public interface IModelManager
+{
+  public IModel getModel(String name);
+  public void free();
+}
+
+public interface IModelInstance
+{
+  public IModel getModel();
+  
+  public PVector getTranslation();
+  public PVector getRotation();
+  public PVector getScale();
+  
+  public void setTranslation(PVector translation);
+  public void setRotation(PVector rotation);
+  public void setScale(PVector scale);
+  
+  public void render();
+  
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatModel flatModel);
 }
 
 public interface IScene
@@ -3529,13 +3903,13 @@ public interface IScene
   public IPerspectiveCamera getPerspectiveCamera();
   public void setPerspectiveCamera(IPerspectiveCamera perspectiveCamera);
   
-  public void addSprite(ISprite sprite);
-  public ISprite getSprite(String name);
-  public void removeSprite(String name);
+  public int addSpriteInstance(ISpriteInstance sprite);
+  public ISpriteInstance getSpriteInstance(int handle);
+  public void removeSpriteInstance(int handle);
   
-  public void addModel(IModel model);
-  public IModel getModel(String name);
-  public void removeModel(String name);
+  public int addModelInstance(IModelInstance model);
+  public IModelInstance getModelInstance(int handle);
+  public void removeModelInstance(int handle);
   
   public void render();
 }
@@ -3858,190 +4232,86 @@ public class Sprite implements ISprite
 {
   private String name;
   
-  private PVector translation;
-  private float rotation;
-  private PVector scale;
-  
   public Sprite(String _name)
   {
     name = _name;
+  }
     
-    translation = new PVector();
-    rotation = 0.0f;
-    scale = new PVector(1.0f, 1.0f);
-  }
-  
-  public Sprite(JSONObject jsonSprite)
-  {
-    deserialize(jsonSprite);
-  }
-  
   @Override public String getName()
   {
     return name;
   }
   
-  @Override public PVector getTranslation()
-  {
-    return translation;
-  }
-  
-  @Override public float getRotation()
-  {
-    return rotation;
-  }
-  
-  @Override public PVector getScale()
-  {
-    return scale;
-  }
-  
-  @Override public void setTranslation(PVector _translation)
-  {
-    translation = _translation;
-  }
-  
-  @Override public void setRotation(float _rotation)
-  {
-    rotation = _rotation;
-  }
-  
-  @Override public void setScale(PVector _scale)
-  {
-    scale = _scale;
-  }
+  //@Override public void from***(String fileName);
   
   @Override public void render()
   {
-    pushMatrix();
-    
-    translate(translation.x, translation.y, translation.z);
-    rotateZ(rotation);
-    scale(scale.x, scale.y, scale.z);
-    
-    //==============================================
-    // CHANGE HOW SPRITES ARE RENDERED HERE
-    fill(255);
-    
-    beginShape();
-    vertex(-50.0f, -50.0f, 0.0f);
-    vertex(50.0f, -50.0f, 0.0f);
-    vertex(-50.0f, 50.0f, 0.0f);
-    //vertex(50.0f, 50.0f, 0.0f);
-    endShape();
-    //==============================================
-    
-    popMatrix();
-  }
-  
-  @Override public JSONObject serialize()
-  {
-    return new JSONObject();
-  }
-  
-  @Override public void deserialize(JSONObject jsonSprite)
-  {
-    name = jsonSprite.getString("name");
   }
 }
 
-public class Model implements IModel
+public class SpriteManager implements ISpriteManager
 {
-  private class PShapeExt
+  private static final String MANIFEST_FILE_NAME = "sprites/sprites-manifest.xml";
+  
+  private HashMap<String, ISprite> loadedSprites;
+  private XML manifest;
+  
+  public SpriteManager()
   {
-    PShape pshape;
-    ArrayList<PVector> uvs;
+    loadedSprites = new HashMap<String, ISprite>();
+    manifest = loadXML(MANIFEST_FILE_NAME);
+    assert(manifest.getName().equals("Sprites"));
   }
   
-  private String name;
+  @Override public ISprite getSprite(String name)
+  {
+    ISprite sprite = loadedSprites.get(name);
+    
+    if (sprite != null)
+    {
+      return sprite;
+    }
+    
+    for (XML xmlSprite : manifest.getChildren("Sprite"))
+    {
+      if (xmlSprite.getString("name").equals(name))
+      {
+        sprite = new Sprite(name);
+        //sprite.from***(xmlSprite.getString("fileName"));
+        return sprite;
+      }
+    }
+    
+    println("WARNING: No such sprite by name: " + name + " found in sprites-manifest.");
+    return null;
+  }
   
-  private ArrayList<PShapeExt> faces;
-  private IMaterial material;
+  @Override public void free()
+  {
+    loadedSprites.clear();
+  }
+}
+
+public class SpriteInstance implements ISpriteInstance
+{
+  private ISprite sprite;
   
   private PVector translation;
   private PVector rotation;
   private PVector scale;
   
-  public Model(String _name)
+  public SpriteInstance(String spriteName)
   {
-    name = _name;
+    sprite = spriteManager.getSprite(spriteName);
     
-    faces = new ArrayList<PShapeExt>();
-    material = new Material();
-    
-    translation = new PVector();
-    rotation = new PVector();
-    scale = new PVector(1.0f, 1.0f, 1.0f);
+    translation = new PVector(0.0f, 0.0f, 0.0f);
+    rotation = new PVector(0.0f, 0.0f, 0.0f);
+    scale = new PVector(1.0f, 1.0f);
   }
   
-  public Model(JSONObject jsonModel)
+  @Override public ISprite getSprite()
   {
-    deserialize(jsonModel);
-  }
-  
-  @Override public void fromOBJ(String objFileName)
-  {
-    ArrayList<PVector> vertices = new ArrayList<PVector>();
-    ArrayList<PVector> uvs = new ArrayList<PVector>();
-    IMaterialLib materialLib = null;
-    
-    // These are dummy inserts so we don't need to subtract all the indices in the .obj file by one.
-    vertices.add(new PVector());
-    uvs.add(new PVector());
-    
-    for (String line : loadStrings(objFileName))
-    {
-      String[] words = line.split(" ");
-      
-      switch(words[0])
-      {
-        case "mtllib":
-          materialLib = materialLibManager.getMaterialLib(words[1]);
-          break;
-          
-        case "v":
-          vertices.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2]), Float.parseFloat(words[3])));
-          break;
-          
-        case "vt":
-          uvs.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2])));
-          break;
-          
-        case "usemtl":
-          if (materialLib != null)
-          {
-            material = materialLib.getMaterial(words[1]);
-          }
-          break;
-          
-        case "f":
-          PShapeExt face = new PShapeExt();
-          face.uvs = new ArrayList<PVector>();
-          
-          face.pshape = createShape();
-          face.pshape.beginShape();
-          face.pshape.noStroke();
-          for (int i = 1; i < words.length; i++)
-          {
-            String[] vertexComponentsIndices = words[i].split("/");
-            
-            int vertexIndex = Integer.parseInt(vertexComponentsIndices[0]);
-            int uvIndex = Integer.parseInt(vertexComponentsIndices[1]);
-            
-            face.pshape.vertex(vertices.get(vertexIndex).x, vertices.get(vertexIndex).y, vertices.get(vertexIndex).z, uvs.get(uvIndex).x, uvs.get(uvIndex).y);
-            face.uvs.add(new PVector(uvs.get(uvIndex).x, uvs.get(uvIndex).y));
-          }
-          face.pshape.texture(material.getTexture());
-          face.pshape.endShape();
-          faces.add(face);
-          break;
-      }
-    }
-  }
-  
-  @Override public String getName()
-  {
-    return name;
+    return sprite;
   }
   
   @Override public PVector getTranslation()
@@ -4084,78 +4354,269 @@ public class Model implements IModel
     rotateZ(rotation.z);
     scale(scale.x, scale.y, scale.z);
     
-    for (PShapeExt face : faces)
-    {
-      shape(face.pshape);
-    }
+    sprite.render();
     
     popMatrix();
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonModel = new JSONObject();
+    int spriteNameOffset = builder.createString(sprite.getName());
     
-    jsonModel.setString("name", name);
+    FlatSprite.startFlatSprite(builder);
+    FlatSprite.addSpriteName(builder, spriteNameOffset);
+    FlatSprite.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
+    FlatSprite.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
+    FlatSprite.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
     
-    JSONArray jsonFaces = new JSONArray();
-    for (PShapeExt face : faces)
-    {
-      JSONArray jsonFace = new JSONArray();
-      for (int i = 0; i < face.pshape.getVertexCount(); i++)
-      {
-        PVector vertex = face.pshape.getVertex(i);
-        JSONObject jsonVertex = new JSONObject();
-        jsonVertex.setFloat("x", vertex.x);
-        jsonVertex.setFloat("y", vertex.y);
-        jsonVertex.setFloat("z", vertex.z);
-        jsonVertex.setFloat("u", face.uvs.get(i).x);
-        jsonVertex.setFloat("v", face.uvs.get(i).y);
-        jsonFace.append(jsonVertex);
-      }
-      jsonFaces.append(jsonFace);
-    }
-    jsonModel.setJSONArray("faces", jsonFaces);
-    
-    jsonModel.setJSONObject("material", material.serialize());
-    
-    return jsonModel;
+    return FlatSprite.endFlatSprite(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonModel)
+  @Override public void deserialize(FlatSprite flatSprite)
   {
-    name = jsonModel.getString("name");
+    sprite = spriteManager.getSprite(flatSprite.spriteName());
     
-    material = new Material(jsonModel.getJSONObject("material"));
+    FlatVec3 flatTranslation = flatSprite.translation();
+    translation = new PVector(flatTranslation.x(), flatTranslation.y(), flatTranslation.z());
+    
+    FlatVec3 flatRotation = flatSprite.rotation();
+    rotation = new PVector(flatRotation.x(), flatRotation.y(), flatRotation.z());
+    
+    FlatVec3 flatScale = flatSprite.scale();
+    scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
+  }
+}
+
+public class Model implements IModel
+{
+  private class PShapeExt
+  {
+    PShape pshape;
+    ArrayList<PVector> uvs;
+  }
+  
+  private String name;
+  
+  private ArrayList<PShapeExt> faces;
+  private IMaterial material;
+  
+  public Model(String _name)
+  {
+    name = _name;
     
     faces = new ArrayList<PShapeExt>();
-    JSONArray jsonFaces = jsonModel.getJSONArray("faces");
-    for (int i = 0; i < jsonFaces.size(); i++)
+    material = new Material();
+  }
+  
+  @Override public String getName()
+  {
+    return name;
+  }
+  
+  @Override public void fromOBJ(String objFileName)
+  {
+    ArrayList<PVector> vertices = new ArrayList<PVector>();
+    ArrayList<PVector> uvs = new ArrayList<PVector>();
+    IMaterialLib materialLib = null;
+    
+    // These are dummy inserts so we don't need to subtract all the indices in the .obj file by one.
+    vertices.add(new PVector());
+    uvs.add(new PVector());
+    
+    for (String line : loadStrings(objFileName))
     {
-      PShapeExt face = new PShapeExt();
-      face.uvs = new ArrayList<PVector>();
+      String[] words = line.split(" ");
       
-      face.pshape = createShape();
-      face.pshape.beginShape();
-      face.pshape.noStroke();
-      
-      JSONArray jsonFace = jsonFaces.getJSONArray(i);
-      for (int j = 0; j < jsonFace.size(); j++)
+      switch(words[0])
       {
-        PVector uv = new PVector();
-        
-        JSONObject jsonVertex = jsonFace.getJSONObject(j);
-        uv.x = jsonVertex.getFloat("u");
-        uv.y = jsonVertex.getFloat("v");
-        face.pshape.vertex(jsonVertex.getFloat("x"), jsonVertex.getFloat("y"), jsonVertex.getFloat("z"), uv.x, uv.y);
-        face.uvs.add(uv);
+        case "mtllib":
+          materialLib = materialManager.getMaterialLib(words[1]);
+          break;
+          
+        case "v":
+          vertices.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2]), Float.parseFloat(words[3])));
+          break;
+          
+        case "vt":
+          uvs.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2])));
+          break;
+          
+        case "usemtl":
+          if (materialLib != null)
+          {
+            material = materialLib.getMaterial(words[1]);
+          }
+          break;
+          
+        case "f":
+          PShapeExt face = new PShapeExt();
+          face.uvs = new ArrayList<PVector>();
+          
+          face.pshape = createShape();
+          face.pshape.beginShape();
+          face.pshape.noStroke();
+          for (int i = 1; i < words.length; i++)
+          {
+            String[] vertexComponentsIndices = words[i].split("/");
+            
+            int vertexIndex = Integer.parseInt(vertexComponentsIndices[0]);
+            int uvIndex = Integer.parseInt(vertexComponentsIndices[1]);
+            
+            face.pshape.vertex(vertices.get(vertexIndex).x, vertices.get(vertexIndex).y, vertices.get(vertexIndex).z, uvs.get(uvIndex).x, uvs.get(uvIndex).y);
+            face.uvs.add(new PVector(uvs.get(uvIndex).x, uvs.get(uvIndex).y));
+          }
+          face.pshape.texture(material.getTexture());
+          face.pshape.endShape();
+          faces.add(face);
+          break;
       }
-      
-      face.pshape.texture(material.getTexture());
-      face.pshape.endShape();
-      
-      faces.add(face);
     }
+  }
+  
+  @Override public void render()
+  {
+    for (PShapeExt face : faces)
+    {
+      shape(face.pshape);
+    }
+  }
+}
+
+public class ModelManager implements IModelManager
+{
+  private static final String MANIFEST_FILE_NAME = "models/models-manifest.xml";
+  
+  private HashMap<String, IModel> loadedModels;
+  private XML manifest;
+  
+  public ModelManager()
+  {
+    loadedModels = new HashMap<String, IModel>();
+    manifest = loadXML(MANIFEST_FILE_NAME);
+    assert(manifest.getName().equals("Models"));
+  }
+  
+  @Override public IModel getModel(String name)
+  {
+    IModel model = loadedModels.get(name);
+    
+    if (model != null)
+    {
+      return model;
+    }
+    
+    for (XML xmlModel : manifest.getChildren("Model"))
+    {
+      if (xmlModel.getString("name").equals(name))
+      {
+        model = new Model(name);
+        model.fromOBJ(xmlModel.getString("objFile"));
+        return model;
+      }
+    }
+    
+    println("WARNING: No such model by name: " + name + " found in models-manifest.");
+    return null;
+  }
+  
+  @Override public void free()
+  {
+    loadedModels.clear();
+  }
+}
+
+public class ModelInstance implements IModelInstance
+{
+  private IModel model;
+  
+  private PVector translation;
+  private PVector rotation;
+  private PVector scale;
+  
+  public ModelInstance(String modelName)
+  {
+    model = modelManager.getModel(modelName);
+    
+    translation = new PVector();
+    rotation = new PVector();
+    scale = new PVector(1.0f, 1.0f, 1.0f);
+  }
+  
+  @Override public IModel getModel()
+  {
+    return model;
+  }
+  
+  @Override public PVector getTranslation()
+  {
+    return translation;
+  }
+  
+  @Override public PVector getRotation()
+  {
+    return rotation;
+  }
+  
+  @Override public PVector getScale()
+  {
+    return scale;
+  }
+  
+  @Override public void setTranslation(PVector _translation)
+  {
+    translation = _translation;
+  }
+  
+  @Override public void setRotation(PVector _rotation)
+  {
+    rotation = _rotation;
+  }
+    
+  @Override public void setScale(PVector _scale)
+  {
+    scale = _scale;
+  }
+  
+  @Override public void render()
+  {
+    pushMatrix();
+    
+    translate(translation.x, translation.y, translation.z);
+    rotateX(rotation.x);
+    rotateY(rotation.y);
+    rotateZ(rotation.z);
+    scale(scale.x, scale.y, scale.z);
+    
+    model.render();
+    
+    popMatrix();
+  }
+  
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    int modelNameOffset = builder.createString(model.getName());
+    
+    FlatModel.startFlatModel(builder);
+    FlatModel.addModelName(builder, modelNameOffset);
+    FlatModel.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
+    FlatModel.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
+    FlatModel.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
+    
+    return FlatModel.endFlatModel(builder);
+  }
+  
+  @Override public void deserialize(FlatModel flatModel)
+  {
+    model = modelManager.getModel(flatModel.modelName());
+    
+    FlatVec3 flatTranslation = flatModel.translation();
+    translation = new PVector(flatTranslation.x(), flatTranslation.y(), flatTranslation.z());
+    
+    FlatVec3 flatRotation = flatModel.rotation();
+    rotation = new PVector(flatRotation.x(), flatRotation.y(), flatRotation.z());
+    
+    FlatVec3 flatScale = flatModel.scale();
+    scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
   }
 }
 
@@ -4164,15 +4625,19 @@ public class Scene implements IScene
 {
   private IOrthographicCamera orthographicCamera;
   private IPerspectiveCamera perspectiveCamera;
-  private HashMap<String, ISprite> sprites;
-  private HashMap<String, IModel> models;
+  private HashMap<Integer, ISpriteInstance> spriteInstances;
+  private HashMap<Integer, IModelInstance> modelInstances;
+  private int nextSpriteHandle;
+  private int nextModelHandle;
   
   public Scene()
   {
     orthographicCamera = new OrthographicCamera();
     perspectiveCamera = new PerspectiveCamera();
-    sprites = new HashMap<String, ISprite>();
-    models = new HashMap<String, IModel>();
+    spriteInstances = new HashMap<Integer, ISpriteInstance>();
+    modelInstances = new HashMap<Integer, IModelInstance>();
+    nextSpriteHandle = 0;
+    nextModelHandle = 0;
   }
   
   @Override public IOrthographicCamera getOrthographicCamera()
@@ -4195,92 +4660,60 @@ public class Scene implements IScene
     perspectiveCamera = _perspectiveCamera;
   }
   
-  @Override public void addSprite(ISprite sprite)
+  @Override public int addSpriteInstance(ISpriteInstance sprite)
   {
-    sprites.put(sprite.getName(), sprite);
+    int spriteHandle = nextSpriteHandle;
+    ++nextSpriteHandle;
+    spriteInstances.put(spriteHandle, sprite);
+    return spriteHandle;
   }
   
-  @Override public ISprite getSprite(String name)
+  @Override public ISpriteInstance getSpriteInstance(int handle)
   {
-    return sprites.get(name);
+    return spriteInstances.get(handle);
   }
   
-  @Override public void removeSprite(String name)
+  @Override public void removeSpriteInstance(int handle)
   {
-    sprites.remove(name);
+    spriteInstances.remove(handle);
   }
   
-  @Override public void addModel(IModel model)
+  @Override public int addModelInstance(IModelInstance model)
   {
-    models.put(model.getName(), model);
+    int modelHandle = nextModelHandle;
+    ++nextModelHandle;
+    modelInstances.put(modelHandle, model);
+    return modelHandle;
   }
   
-  @Override public IModel getModel(String name)
+  @Override public IModelInstance getModelInstance(int handle)
   {
-    return models.get(name);
+    return modelInstances.get(handle);
   }
   
-  @Override public void removeModel(String name)
+  @Override public void removeModelInstance(int handle)
   {
-    models.remove(name);
+    modelInstances.remove(handle);
   }
   
   @Override public void render()
   {
     orthographicCamera.apply();
     
-    for (Map.Entry entry : sprites.entrySet())
+    for (Map.Entry entry : spriteInstances.entrySet())
     {
-      ((ISprite)entry.getValue()).render();
+      ((ISpriteInstance)entry.getValue()).render();
     }
     
     perspectiveCamera.apply();
     
-    for (Map.Entry entry : models.entrySet())
+    for (Map.Entry entry : modelInstances.entrySet())
     {
-      ((IModel)entry.getValue()).render();
+      ((IModelInstance)entry.getValue()).render();
     }
   }
 }
-//======================================================================================================
-// Author: David Hanna
-//
-// A collection of PImages used for texturing objects in the game world. Ensures once-only loading times.
-//======================================================================================================
-
-//------------------------------------------------------------------------------------------------------
-// INTERFACE
-//------------------------------------------------------------------------------------------------------
-
-public interface ITextureManager
-{
-  public PImage getTexture(String name);
-}
-
-
-//------------------------------------------------------------------------------------------------------
-// IMPLEMENTATION
-//------------------------------------------------------------------------------------------------------
-
-public class TextureManager implements ITextureManager
-{
-  private HashMap<String, PImage> textures;
-  
-  public TextureManager()
-  {
-    textures = new HashMap<String, PImage>();
-  }
-  
-  @Override public PImage getTexture(String name)
-  {
-    if (!textures.containsKey(name))
-    {
-      textures.put(name, loadImage(name));
-    }
-    return textures.get(name);
-  }
-}
-  public void settings() {  size(800, 600, P3D); }
+  public void settings() {  size(500, 350, P3D); }
   static public void main(String[] passedArgs) {
     String[] appletArgs = new String[] { "MultiScreenGameEngine" };
     if (passedArgs != null) {

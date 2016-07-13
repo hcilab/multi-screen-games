@@ -11,14 +11,19 @@ import java.util.Map;
 import processing.net.Client;
 import processing.net.Server;
 
+import com.google.flatbuffers.FlatBufferBuilder;
+import java.nio.ByteBuffer; 
+import msge.std.*;
+
 import java.awt.Robot;
 import java.awt.AWTException;
 import java.awt.MouseInfo;
 
 MultiScreenGameEngine mainObject;
 IEventManager eventManager;
-ITextureManager textureManager;
-IMaterialLibManager materialLibManager;
+IMaterialManager materialManager;
+ISpriteManager spriteManager;
+IModelManager modelManager;
 IScene scene;
 IGameStateController gameStateController;
 
@@ -26,13 +31,14 @@ int lastFrameTime;
 
 void setup()
 {
-  size(800, 600, P3D);
+  size(500, 350, P3D);
   surface.setResizable(true);
   
   mainObject = this;
   eventManager = new EventManager();
-  textureManager = new TextureManager();
-  materialLibManager = new MaterialLibManager(); 
+  materialManager = new MaterialManager();
+  spriteManager = new SpriteManager();
+  modelManager = new ModelManager();
   scene = new Scene();
   gameStateController = new GameStateController();
   gameStateController.pushState(new GameState_ChooseClientServerState());

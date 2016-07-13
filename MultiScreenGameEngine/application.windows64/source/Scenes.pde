@@ -59,26 +59,19 @@ public interface IOrthographicCamera extends ICamera
 public interface ISprite
 {
   public String getName();
-  
-  public PVector getTranslation();
-  public float getRotation();
-  public PVector getScale();
-  
-  public void setTranslation(PVector translation);
-  public void setRotation(float rotation);
-  public void setScale(PVector scale);
-  
+  //public void from***(String fileName);
   public void render();
-  
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonSprite);
 }
 
-public interface IModel
+public interface ISpriteManager
 {
-  public void fromOBJ(String objFileName);
-  
-  public String getName();
+  public ISprite getSprite(String name);
+  public void free();
+}
+
+public interface ISpriteInstance
+{
+  public ISprite getSprite();
   
   public PVector getTranslation();
   public PVector getRotation();
@@ -90,8 +83,39 @@ public interface IModel
   
   public void render();
   
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonModel);
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatSprite flatSprite);
+}
+
+public interface IModel
+{
+  public String getName();
+  public void fromOBJ(String objFileName);
+  public void render();
+}
+
+public interface IModelManager
+{
+  public IModel getModel(String name);
+  public void free();
+}
+
+public interface IModelInstance
+{
+  public IModel getModel();
+  
+  public PVector getTranslation();
+  public PVector getRotation();
+  public PVector getScale();
+  
+  public void setTranslation(PVector translation);
+  public void setRotation(PVector rotation);
+  public void setScale(PVector scale);
+  
+  public void render();
+  
+  public int serialize(FlatBufferBuilder builder);
+  public void deserialize(FlatModel flatModel);
 }
 
 public interface IScene
@@ -102,13 +126,13 @@ public interface IScene
   public IPerspectiveCamera getPerspectiveCamera();
   public void setPerspectiveCamera(IPerspectiveCamera perspectiveCamera);
   
-  public void addSprite(ISprite sprite);
-  public ISprite getSprite(String name);
-  public void removeSprite(String name);
+  public int addSpriteInstance(ISpriteInstance sprite);
+  public ISpriteInstance getSpriteInstance(int handle);
+  public void removeSpriteInstance(int handle);
   
-  public void addModel(IModel model);
-  public IModel getModel(String name);
-  public void removeModel(String name);
+  public int addModelInstance(IModelInstance model);
+  public IModelInstance getModelInstance(int handle);
+  public void removeModelInstance(int handle);
   
   public void render();
 }
@@ -431,190 +455,86 @@ public class Sprite implements ISprite
 {
   private String name;
   
-  private PVector translation;
-  private float rotation;
-  private PVector scale;
-  
   public Sprite(String _name)
   {
     name = _name;
+  }
     
-    translation = new PVector();
-    rotation = 0.0f;
-    scale = new PVector(1.0f, 1.0f);
-  }
-  
-  public Sprite(JSONObject jsonSprite)
-  {
-    deserialize(jsonSprite);
-  }
-  
   @Override public String getName()
   {
     return name;
   }
   
-  @Override public PVector getTranslation()
-  {
-    return translation;
-  }
-  
-  @Override public float getRotation()
-  {
-    return rotation;
-  }
-  
-  @Override public PVector getScale()
-  {
-    return scale;
-  }
-  
-  @Override public void setTranslation(PVector _translation)
-  {
-    translation = _translation;
-  }
-  
-  @Override public void setRotation(float _rotation)
-  {
-    rotation = _rotation;
-  }
-  
-  @Override public void setScale(PVector _scale)
-  {
-    scale = _scale;
-  }
+  //@Override public void from***(String fileName);
   
   @Override public void render()
   {
-    pushMatrix();
-    
-    translate(translation.x, translation.y, translation.z);
-    rotateZ(rotation);
-    scale(scale.x, scale.y, scale.z);
-    
-    //==============================================
-    // CHANGE HOW SPRITES ARE RENDERED HERE
-    fill(255);
-    
-    beginShape();
-    vertex(-50.0f, -50.0f, 0.0f);
-    vertex(50.0f, -50.0f, 0.0f);
-    vertex(-50.0f, 50.0f, 0.0f);
-    //vertex(50.0f, 50.0f, 0.0f);
-    endShape();
-    //==============================================
-    
-    popMatrix();
-  }
-  
-  @Override public JSONObject serialize()
-  {
-    return new JSONObject();
-  }
-  
-  @Override public void deserialize(JSONObject jsonSprite)
-  {
-    name = jsonSprite.getString("name");
   }
 }
 
-public class Model implements IModel
+public class SpriteManager implements ISpriteManager
 {
-  private class PShapeExt
+  private static final String MANIFEST_FILE_NAME = "sprites/sprites-manifest.xml";
+  
+  private HashMap<String, ISprite> loadedSprites;
+  private XML manifest;
+  
+  public SpriteManager()
   {
-    PShape pshape;
-    ArrayList<PVector> uvs;
+    loadedSprites = new HashMap<String, ISprite>();
+    manifest = loadXML(MANIFEST_FILE_NAME);
+    assert(manifest.getName().equals("Sprites"));
   }
   
-  private String name;
+  @Override public ISprite getSprite(String name)
+  {
+    ISprite sprite = loadedSprites.get(name);
+    
+    if (sprite != null)
+    {
+      return sprite;
+    }
+    
+    for (XML xmlSprite : manifest.getChildren("Sprite"))
+    {
+      if (xmlSprite.getString("name").equals(name))
+      {
+        sprite = new Sprite(name);
+        //sprite.from***(xmlSprite.getString("fileName"));
+        return sprite;
+      }
+    }
+    
+    println("WARNING: No such sprite by name: " + name + " found in sprites-manifest.");
+    return null;
+  }
   
-  private ArrayList<PShapeExt> faces;
-  private IMaterial material;
+  @Override public void free()
+  {
+    loadedSprites.clear();
+  }
+}
+
+public class SpriteInstance implements ISpriteInstance
+{
+  private ISprite sprite;
   
   private PVector translation;
   private PVector rotation;
   private PVector scale;
   
-  public Model(String _name)
+  public SpriteInstance(String spriteName)
   {
-    name = _name;
+    sprite = spriteManager.getSprite(spriteName);
     
-    faces = new ArrayList<PShapeExt>();
-    material = new Material();
-    
-    translation = new PVector();
-    rotation = new PVector();
-    scale = new PVector(1.0f, 1.0f, 1.0f);
+    translation = new PVector(0.0f, 0.0f, 0.0f);
+    rotation = new PVector(0.0f, 0.0f, 0.0f);
+    scale = new PVector(1.0f, 1.0f);
   }
   
-  public Model(JSONObject jsonModel)
+  @Override public ISprite getSprite()
   {
-    deserialize(jsonModel);
-  }
-  
-  @Override public void fromOBJ(String objFileName)
-  {
-    ArrayList<PVector> vertices = new ArrayList<PVector>();
-    ArrayList<PVector> uvs = new ArrayList<PVector>();
-    IMaterialLib materialLib = null;
-    
-    // These are dummy inserts so we don't need to subtract all the indices in the .obj file by one.
-    vertices.add(new PVector());
-    uvs.add(new PVector());
-    
-    for (String line : loadStrings(objFileName))
-    {
-      String[] words = line.split(" ");
-      
-      switch(words[0])
-      {
-        case "mtllib":
-          materialLib = materialLibManager.getMaterialLib(words[1]);
-          break;
-          
-        case "v":
-          vertices.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2]), Float.parseFloat(words[3])));
-          break;
-          
-        case "vt":
-          uvs.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2])));
-          break;
-          
-        case "usemtl":
-          if (materialLib != null)
-          {
-            material = materialLib.getMaterial(words[1]);
-          }
-          break;
-          
-        case "f":
-          PShapeExt face = new PShapeExt();
-          face.uvs = new ArrayList<PVector>();
-          
-          face.pshape = createShape();
-          face.pshape.beginShape();
-          face.pshape.noStroke();
-          for (int i = 1; i < words.length; i++)
-          {
-            String[] vertexComponentsIndices = words[i].split("/");
-            
-            int vertexIndex = Integer.parseInt(vertexComponentsIndices[0]);
-            int uvIndex = Integer.parseInt(vertexComponentsIndices[1]);
-            
-            face.pshape.vertex(vertices.get(vertexIndex).x, vertices.get(vertexIndex).y, vertices.get(vertexIndex).z, uvs.get(uvIndex).x, uvs.get(uvIndex).y);
-            face.uvs.add(new PVector(uvs.get(uvIndex).x, uvs.get(uvIndex).y));
-          }
-          face.pshape.texture(material.getTexture());
-          face.pshape.endShape();
-          faces.add(face);
-          break;
-      }
-    }
-  }
-  
-  @Override public String getName()
-  {
-    return name;
+    return sprite;
   }
   
   @Override public PVector getTranslation()
@@ -657,78 +577,269 @@ public class Model implements IModel
     rotateZ(rotation.z);
     scale(scale.x, scale.y, scale.z);
     
-    for (PShapeExt face : faces)
-    {
-      shape(face.pshape);
-    }
+    sprite.render();
     
     popMatrix();
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonModel = new JSONObject();
+    int spriteNameOffset = builder.createString(sprite.getName());
     
-    jsonModel.setString("name", name);
+    FlatSprite.startFlatSprite(builder);
+    FlatSprite.addSpriteName(builder, spriteNameOffset);
+    FlatSprite.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
+    FlatSprite.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
+    FlatSprite.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
     
-    JSONArray jsonFaces = new JSONArray();
-    for (PShapeExt face : faces)
-    {
-      JSONArray jsonFace = new JSONArray();
-      for (int i = 0; i < face.pshape.getVertexCount(); i++)
-      {
-        PVector vertex = face.pshape.getVertex(i);
-        JSONObject jsonVertex = new JSONObject();
-        jsonVertex.setFloat("x", vertex.x);
-        jsonVertex.setFloat("y", vertex.y);
-        jsonVertex.setFloat("z", vertex.z);
-        jsonVertex.setFloat("u", face.uvs.get(i).x);
-        jsonVertex.setFloat("v", face.uvs.get(i).y);
-        jsonFace.append(jsonVertex);
-      }
-      jsonFaces.append(jsonFace);
-    }
-    jsonModel.setJSONArray("faces", jsonFaces);
-    
-    jsonModel.setJSONObject("material", material.serialize());
-    
-    return jsonModel;
+    return FlatSprite.endFlatSprite(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonModel)
+  @Override public void deserialize(FlatSprite flatSprite)
   {
-    name = jsonModel.getString("name");
+    sprite = spriteManager.getSprite(flatSprite.spriteName());
     
-    material = new Material(jsonModel.getJSONObject("material"));
+    FlatVec3 flatTranslation = flatSprite.translation();
+    translation = new PVector(flatTranslation.x(), flatTranslation.y(), flatTranslation.z());
+    
+    FlatVec3 flatRotation = flatSprite.rotation();
+    rotation = new PVector(flatRotation.x(), flatRotation.y(), flatRotation.z());
+    
+    FlatVec3 flatScale = flatSprite.scale();
+    scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
+  }
+}
+
+public class Model implements IModel
+{
+  private class PShapeExt
+  {
+    PShape pshape;
+    ArrayList<PVector> uvs;
+  }
+  
+  private String name;
+  
+  private ArrayList<PShapeExt> faces;
+  private IMaterial material;
+  
+  public Model(String _name)
+  {
+    name = _name;
     
     faces = new ArrayList<PShapeExt>();
-    JSONArray jsonFaces = jsonModel.getJSONArray("faces");
-    for (int i = 0; i < jsonFaces.size(); i++)
+    material = new Material();
+  }
+  
+  @Override public String getName()
+  {
+    return name;
+  }
+  
+  @Override public void fromOBJ(String objFileName)
+  {
+    ArrayList<PVector> vertices = new ArrayList<PVector>();
+    ArrayList<PVector> uvs = new ArrayList<PVector>();
+    IMaterialLib materialLib = null;
+    
+    // These are dummy inserts so we don't need to subtract all the indices in the .obj file by one.
+    vertices.add(new PVector());
+    uvs.add(new PVector());
+    
+    for (String line : loadStrings(objFileName))
     {
-      PShapeExt face = new PShapeExt();
-      face.uvs = new ArrayList<PVector>();
+      String[] words = line.split(" ");
       
-      face.pshape = createShape();
-      face.pshape.beginShape();
-      face.pshape.noStroke();
-      
-      JSONArray jsonFace = jsonFaces.getJSONArray(i);
-      for (int j = 0; j < jsonFace.size(); j++)
+      switch(words[0])
       {
-        PVector uv = new PVector();
-        
-        JSONObject jsonVertex = jsonFace.getJSONObject(j);
-        uv.x = jsonVertex.getFloat("u");
-        uv.y = jsonVertex.getFloat("v");
-        face.pshape.vertex(jsonVertex.getFloat("x"), jsonVertex.getFloat("y"), jsonVertex.getFloat("z"), uv.x, uv.y);
-        face.uvs.add(uv);
+        case "mtllib":
+          materialLib = materialManager.getMaterialLib(words[1]);
+          break;
+          
+        case "v":
+          vertices.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2]), Float.parseFloat(words[3])));
+          break;
+          
+        case "vt":
+          uvs.add(new PVector(Float.parseFloat(words[1]), Float.parseFloat(words[2])));
+          break;
+          
+        case "usemtl":
+          if (materialLib != null)
+          {
+            material = materialLib.getMaterial(words[1]);
+          }
+          break;
+          
+        case "f":
+          PShapeExt face = new PShapeExt();
+          face.uvs = new ArrayList<PVector>();
+          
+          face.pshape = createShape();
+          face.pshape.beginShape();
+          face.pshape.noStroke();
+          for (int i = 1; i < words.length; i++)
+          {
+            String[] vertexComponentsIndices = words[i].split("/");
+            
+            int vertexIndex = Integer.parseInt(vertexComponentsIndices[0]);
+            int uvIndex = Integer.parseInt(vertexComponentsIndices[1]);
+            
+            face.pshape.vertex(vertices.get(vertexIndex).x, vertices.get(vertexIndex).y, vertices.get(vertexIndex).z, uvs.get(uvIndex).x, uvs.get(uvIndex).y);
+            face.uvs.add(new PVector(uvs.get(uvIndex).x, uvs.get(uvIndex).y));
+          }
+          face.pshape.texture(material.getTexture());
+          face.pshape.endShape();
+          faces.add(face);
+          break;
       }
-      
-      face.pshape.texture(material.getTexture());
-      face.pshape.endShape();
-      
-      faces.add(face);
     }
+  }
+  
+  @Override public void render()
+  {
+    for (PShapeExt face : faces)
+    {
+      shape(face.pshape);
+    }
+  }
+}
+
+public class ModelManager implements IModelManager
+{
+  private static final String MANIFEST_FILE_NAME = "models/models-manifest.xml";
+  
+  private HashMap<String, IModel> loadedModels;
+  private XML manifest;
+  
+  public ModelManager()
+  {
+    loadedModels = new HashMap<String, IModel>();
+    manifest = loadXML(MANIFEST_FILE_NAME);
+    assert(manifest.getName().equals("Models"));
+  }
+  
+  @Override public IModel getModel(String name)
+  {
+    IModel model = loadedModels.get(name);
+    
+    if (model != null)
+    {
+      return model;
+    }
+    
+    for (XML xmlModel : manifest.getChildren("Model"))
+    {
+      if (xmlModel.getString("name").equals(name))
+      {
+        model = new Model(name);
+        model.fromOBJ(xmlModel.getString("objFile"));
+        return model;
+      }
+    }
+    
+    println("WARNING: No such model by name: " + name + " found in models-manifest.");
+    return null;
+  }
+  
+  @Override public void free()
+  {
+    loadedModels.clear();
+  }
+}
+
+public class ModelInstance implements IModelInstance
+{
+  private IModel model;
+  
+  private PVector translation;
+  private PVector rotation;
+  private PVector scale;
+  
+  public ModelInstance(String modelName)
+  {
+    model = modelManager.getModel(modelName);
+    
+    translation = new PVector();
+    rotation = new PVector();
+    scale = new PVector(1.0f, 1.0f, 1.0f);
+  }
+  
+  @Override public IModel getModel()
+  {
+    return model;
+  }
+  
+  @Override public PVector getTranslation()
+  {
+    return translation;
+  }
+  
+  @Override public PVector getRotation()
+  {
+    return rotation;
+  }
+  
+  @Override public PVector getScale()
+  {
+    return scale;
+  }
+  
+  @Override public void setTranslation(PVector _translation)
+  {
+    translation = _translation;
+  }
+  
+  @Override public void setRotation(PVector _rotation)
+  {
+    rotation = _rotation;
+  }
+    
+  @Override public void setScale(PVector _scale)
+  {
+    scale = _scale;
+  }
+  
+  @Override public void render()
+  {
+    pushMatrix();
+    
+    translate(translation.x, translation.y, translation.z);
+    rotateX(rotation.x);
+    rotateY(rotation.y);
+    rotateZ(rotation.z);
+    scale(scale.x, scale.y, scale.z);
+    
+    model.render();
+    
+    popMatrix();
+  }
+  
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    int modelNameOffset = builder.createString(model.getName());
+    
+    FlatModel.startFlatModel(builder);
+    FlatModel.addModelName(builder, modelNameOffset);
+    FlatModel.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
+    FlatModel.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
+    FlatModel.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
+    
+    return FlatModel.endFlatModel(builder);
+  }
+  
+  @Override public void deserialize(FlatModel flatModel)
+  {
+    model = modelManager.getModel(flatModel.modelName());
+    
+    FlatVec3 flatTranslation = flatModel.translation();
+    translation = new PVector(flatTranslation.x(), flatTranslation.y(), flatTranslation.z());
+    
+    FlatVec3 flatRotation = flatModel.rotation();
+    rotation = new PVector(flatRotation.x(), flatRotation.y(), flatRotation.z());
+    
+    FlatVec3 flatScale = flatModel.scale();
+    scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
   }
 }
 
@@ -737,15 +848,19 @@ public class Scene implements IScene
 {
   private IOrthographicCamera orthographicCamera;
   private IPerspectiveCamera perspectiveCamera;
-  private HashMap<String, ISprite> sprites;
-  private HashMap<String, IModel> models;
+  private HashMap<Integer, ISpriteInstance> spriteInstances;
+  private HashMap<Integer, IModelInstance> modelInstances;
+  private int nextSpriteHandle;
+  private int nextModelHandle;
   
   public Scene()
   {
     orthographicCamera = new OrthographicCamera();
     perspectiveCamera = new PerspectiveCamera();
-    sprites = new HashMap<String, ISprite>();
-    models = new HashMap<String, IModel>();
+    spriteInstances = new HashMap<Integer, ISpriteInstance>();
+    modelInstances = new HashMap<Integer, IModelInstance>();
+    nextSpriteHandle = 0;
+    nextModelHandle = 0;
   }
   
   @Override public IOrthographicCamera getOrthographicCamera()
@@ -768,50 +883,56 @@ public class Scene implements IScene
     perspectiveCamera = _perspectiveCamera;
   }
   
-  @Override public void addSprite(ISprite sprite)
+  @Override public int addSpriteInstance(ISpriteInstance sprite)
   {
-    sprites.put(sprite.getName(), sprite);
+    int spriteHandle = nextSpriteHandle;
+    ++nextSpriteHandle;
+    spriteInstances.put(spriteHandle, sprite);
+    return spriteHandle;
   }
   
-  @Override public ISprite getSprite(String name)
+  @Override public ISpriteInstance getSpriteInstance(int handle)
   {
-    return sprites.get(name);
+    return spriteInstances.get(handle);
   }
   
-  @Override public void removeSprite(String name)
+  @Override public void removeSpriteInstance(int handle)
   {
-    sprites.remove(name);
+    spriteInstances.remove(handle);
   }
   
-  @Override public void addModel(IModel model)
+  @Override public int addModelInstance(IModelInstance model)
   {
-    models.put(model.getName(), model);
+    int modelHandle = nextModelHandle;
+    ++nextModelHandle;
+    modelInstances.put(modelHandle, model);
+    return modelHandle;
   }
   
-  @Override public IModel getModel(String name)
+  @Override public IModelInstance getModelInstance(int handle)
   {
-    return models.get(name);
+    return modelInstances.get(handle);
   }
   
-  @Override public void removeModel(String name)
+  @Override public void removeModelInstance(int handle)
   {
-    models.remove(name);
+    modelInstances.remove(handle);
   }
   
   @Override public void render()
   {
     orthographicCamera.apply();
     
-    for (Map.Entry entry : sprites.entrySet())
+    for (Map.Entry entry : spriteInstances.entrySet())
     {
-      ((ISprite)entry.getValue()).render();
+      ((ISpriteInstance)entry.getValue()).render();
     }
     
     perspectiveCamera.apply();
     
-    for (Map.Entry entry : models.entrySet())
+    for (Map.Entry entry : modelInstances.entrySet())
     {
-      ((IModel)entry.getValue()).render();
+      ((IModelInstance)entry.getValue()).render();
     }
   }
 }

@@ -1,0 +1,28 @@
+// Schema file for a single message packet sent over the network.
+
+include "world.fbs";
+
+namespace msge.std;
+
+table FlatMessageHeader
+{
+    clientID : int;
+} 
+
+union FlatMessageBodyUnion
+{
+    FlatGameWorld
+}
+
+table FlatMessageBodyTable
+{
+    body: FlatMessageBodyUnion;
+}
+
+table FlatMessage
+{
+    header : FlatMessageHeader;
+    bodyTable : FlatMessageBodyTable;
+}
+
+root_type FlatMessage;

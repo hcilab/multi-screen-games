@@ -21,11 +21,12 @@ public interface IComponent
 {
   public void            destroy();
   public void            fromXML(XML xmlComponent);
-  public JSONObject      serialize();
-  public void            deserialize(JSONObject jsonComponent);
+  public int             serialize(FlatBufferBuilder builder);
+  public void            deserialize(com.google.flatbuffers.Table componentTable);
   public ComponentType   getComponentType();
   public IGameObject     getGameObject();
   public void            update(int deltaTime);
+  public String          toString();
 }
 
 
@@ -102,15 +103,6 @@ public abstract class Component implements IComponent
   {
   }
   
-  @Override public JSONObject serialize()
-  {
-    return new JSONObject();
-  }
-  
-  @Override public void deserialize(JSONObject jsonComponent)
-  {
-  }
-  
   // There is no need to change this in subclasses.
   @Override final public IGameObject getGameObject()
   {
@@ -125,30 +117,30 @@ public abstract class Component implements IComponent
 
 public class RenderComponent extends Component
 {
-  ArrayList<ISprite> sprites;
-  ArrayList<IModel> models;
+  ArrayList<Integer> spriteHandles;
+  ArrayList<Integer> modelHandles;
   
   public RenderComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
-    sprites = new ArrayList<ISprite>();
-    models = new ArrayList<IModel>();
+    spriteHandles = new ArrayList<Integer>();
+    modelHandles = new ArrayList<Integer>();
   }
   
   @Override public void destroy()
   {
-    for (ISprite sprite : sprites)
+    for (Integer handle : spriteHandles)
     {
-      scene.removeSprite(sprite.getName());
+      scene.removeSpriteInstance(handle);
     }
-    for (IModel model : models)
+    for (Integer handle : modelHandles)
     {
-      scene.removeModel(model.getName());
+      scene.removeModelInstance(handle);
     }
     
-    sprites.clear();
-    models.clear();
+    spriteHandles.clear();
+    modelHandles.clear();
   }
   
   @Override public void fromXML(XML xmlComponent)
@@ -157,61 +149,63 @@ public class RenderComponent extends Component
     {
       if (xmlSubComponent.getName().equals("Sprite"))
       {
-        ISprite sprite = new Sprite(xmlSubComponent.getString("name"));
-        scene.addSprite(sprite);
-        sprites.add(sprite);
+        ISpriteInstance sprite = new SpriteInstance(xmlSubComponent.getString("name"));
+        spriteHandles.add(scene.addSpriteInstance(sprite));
       }
       else if (xmlSubComponent.getName().equals("Model"))
       {
-        IModel model = new Model(xmlSubComponent.getString("name"));
-        model.fromOBJ(xmlSubComponent.getString("objFileName"));
-        scene.addModel(model);
-        models.add(model);
+        IModelInstance modelInstance = new ModelInstance(xmlSubComponent.getString("name"));
+        modelHandles.add(scene.addModelInstance(modelInstance));
       }
     }
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONArray jsonSprites = new JSONArray();
-    JSONArray jsonModels = new JSONArray();
-    
-    for (ISprite sprite : sprites)
+    int[] flatSprites = new int[spriteHandles.size()];
+    for (int i = 0; i < spriteHandles.size(); i++)
     {
-      jsonSprites.append(sprite.serialize());
+      flatSprites[i] = scene.getSpriteInstance(spriteHandles.get(i)).serialize(builder);
     }
+    int flatSpritesVector = FlatRenderComponent.createSpritesVector(builder, flatSprites);
     
-    for (IModel model : models)
+    int[] flatModels = new int[modelHandles.size()];
+    for (int i = 0; i < modelHandles.size(); i++)
     {
-      jsonModels.append(model.serialize());
+      flatModels[i] = scene.getModelInstance(modelHandles.get(i)).serialize(builder);
     }
+    int flatModelsVector = FlatRenderComponent.createModelsVector(builder, flatModels);
     
-    JSONObject jsonRenderComponent = new JSONObject();
-    jsonRenderComponent.setJSONArray("sprites", jsonSprites);
-    jsonRenderComponent.setJSONArray("models", jsonModels);
+    FlatRenderComponent.startFlatRenderComponent(builder);
+    FlatRenderComponent.addSprites(builder, flatSpritesVector);
+    FlatRenderComponent.addModels(builder, flatModelsVector);
     
-    return jsonRenderComponent;
+    int flatRenderComponent = FlatRenderComponent.endFlatRenderComponent(builder);
+    
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatRenderComponent);
+    FlatComponentTable.addComponent(builder, flatRenderComponent);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonRenderComponent)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    destroy();
+    FlatRenderComponent flatRenderComponent = (FlatRenderComponent)componentTable;
     
-    JSONArray jsonSprites = jsonRenderComponent.getJSONArray("sprites");
-    JSONArray jsonModels = jsonRenderComponent.getJSONArray("models");
-    
-    for (int i = 0; i < jsonSprites.size(); i++)
+    for (int i = 0; i < flatRenderComponent.spritesLength(); i++)
     {
-      ISprite sprite = new Sprite(jsonSprites.getJSONObject(i));
-      scene.addSprite(sprite);
-      sprites.add(sprite);
+      FlatSprite flatSprite = flatRenderComponent.sprites(i);
+      ISpriteInstance spriteInstance = new SpriteInstance(flatSprite.spriteName());
+      spriteInstance.deserialize(flatSprite);
+      spriteHandles.add(scene.addSpriteInstance(spriteInstance));
     }
     
-    for (int i = 0; i < jsonModels.size(); i++)
+    for (int i = 0; i < flatRenderComponent.modelsLength(); i++)
     {
-      IModel model = new Model(jsonModels.getJSONObject(i));
-      scene.addModel(model);
-      models.add(model);
+      FlatModel flatModel = flatRenderComponent.models(i);
+      IModelInstance modelInstance = new ModelInstance(flatModel.modelName());
+      modelInstance.deserialize(flatModel);
+      modelHandles.add(scene.addModelInstance(modelInstance));
     }
   }
   
@@ -222,19 +216,40 @@ public class RenderComponent extends Component
   
   @Override public void update(int deltaTime)
   {
-    for (ISprite sprite : sprites)
+    for (Integer spriteHandle : spriteHandles)
     {
-      sprite.setTranslation(gameObject.getTranslation());
-      sprite.setRotation(gameObject.getRotation().z);
-      sprite.setScale(gameObject.getScale());
+      ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
+      spriteInstance.setTranslation(gameObject.getTranslation());
+      spriteInstance.setRotation(gameObject.getRotation());
+      spriteInstance.setScale(gameObject.getScale());
     }
     
-    for (IModel model : models)
+    for (Integer modelHandle : modelHandles)
     {
-      model.setTranslation(gameObject.getTranslation());
-      model.setRotation(gameObject.getRotation());
-      model.setScale(gameObject.getScale());
+      IModelInstance modelInstance = scene.getModelInstance(modelHandle);
+      modelInstance.setTranslation(gameObject.getTranslation());
+      modelInstance.setRotation(gameObject.getRotation());
+      modelInstance.setScale(gameObject.getScale());
     }
+  }
+  
+  @Override public String toString()
+  {
+    String stringRenderComponent = "=========== RenderComponent ===========\n";
+    
+    for (Integer spriteHandle : spriteHandles)
+    {
+      ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
+      stringRenderComponent += "\tSprite: " + spriteInstance.getSprite().getName() + "\n";
+    }
+    
+    for (Integer modelHandle : modelHandles)
+    {
+      IModelInstance modelInstance = scene.getModelInstance(modelHandle);
+      stringRenderComponent += "\tModel: " + modelInstance.getModel().getName() + "\n";
+    }
+    
+    return stringRenderComponent;
   }
 }
 
@@ -256,7 +271,6 @@ public class PerspectiveCameraComponent extends Component
   
   @Override public void fromXML(XML xmlComponent)
   {
-    println("parsing perspective camera");
     for (XML xmlParameter : xmlComponent.getChildren())
     {
       if (xmlParameter.getName().equals("Position"))
@@ -302,6 +316,16 @@ public class PerspectiveCameraComponent extends Component
     }
     
     scene.setPerspectiveCamera(camera);
+  }
+  
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    return 0;
+  }
+  
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
+  {
+    //FlatPerspectiveCameraComponent flatPerspectiveCameraComponent = (FlatPerspectiveCameraComponent)componentTable;
   }
   
   @Override public ComponentType getComponentType()
@@ -370,44 +394,47 @@ public class TranslateOverTimeComponent extends Component
     backwardLimit = xmlComponent.getFloat("backwardLimit");
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonTranslateOverTime = new JSONObject();
+    FlatTranslateOverTimeComponent.startFlatTranslateOverTimeComponent(builder);
+    FlatTranslateOverTimeComponent.addMovingLeft(builder, movingLeft);
+    FlatTranslateOverTimeComponent.addXUnitsPerMillisecond(builder, xUnitsPerMillisecond);
+    FlatTranslateOverTimeComponent.addLeftLimit(builder, leftLimit);
+    FlatTranslateOverTimeComponent.addRightLimit(builder, rightLimit);
+    FlatTranslateOverTimeComponent.addMovingDown(builder, movingDown);
+    FlatTranslateOverTimeComponent.addYUnitsPerMillisecond(builder, yUnitsPerMillisecond);
+    FlatTranslateOverTimeComponent.addLowerLimit(builder, lowerLimit);
+    FlatTranslateOverTimeComponent.addUpperLimit(builder, upperLimit);
+    FlatTranslateOverTimeComponent.addMovingForward(builder, movingForward);
+    FlatTranslateOverTimeComponent.addZUnitsPerMillisecond(builder, zUnitsPerMillisecond);
+    FlatTranslateOverTimeComponent.addForwardLimit(builder, forwardLimit);
+    FlatTranslateOverTimeComponent.addBackwardLimit(builder, backwardLimit);
+    int flatTranslateOverTimeComponentOffset = FlatTranslateOverTimeComponent.endFlatTranslateOverTimeComponent(builder);
     
-    jsonTranslateOverTime.setBoolean("movingLeft", movingLeft);
-    jsonTranslateOverTime.setFloat("xUnitsPerMillisecond", xUnitsPerMillisecond);
-    jsonTranslateOverTime.setFloat("leftLimit", leftLimit);
-    jsonTranslateOverTime.setFloat("rightLimit", rightLimit);
-    
-    jsonTranslateOverTime.setBoolean("movingDown", movingDown);
-    jsonTranslateOverTime.setFloat("yUnitsPerMillisecond", yUnitsPerMillisecond);
-    jsonTranslateOverTime.setFloat("lowerLimit", lowerLimit);
-    jsonTranslateOverTime.setFloat("upperLimit", upperLimit);
-    
-    jsonTranslateOverTime.setBoolean("movingForward", movingForward);
-    jsonTranslateOverTime.setFloat("zUnitsPerMillisecond", zUnitsPerMillisecond);
-    jsonTranslateOverTime.setFloat("forwardLimit", forwardLimit);
-    jsonTranslateOverTime.setFloat("backwardLimit", backwardLimit);
-    
-    return jsonTranslateOverTime;
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatTranslateOverTimeComponent);
+    FlatComponentTable.addComponent(builder, flatTranslateOverTimeComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonTranslateOverTime)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    movingLeft = jsonTranslateOverTime.getBoolean("movingLeft");
-    xUnitsPerMillisecond = jsonTranslateOverTime.getFloat("xUnitsPerMillisecond");
-    leftLimit = jsonTranslateOverTime.getFloat("leftLimit");
-    rightLimit = jsonTranslateOverTime.getFloat("rightLimit");
+    FlatTranslateOverTimeComponent flatTranslateOverTimeComponent = (FlatTranslateOverTimeComponent)componentTable;
     
-    movingDown = jsonTranslateOverTime.getBoolean("movingDown");
-    yUnitsPerMillisecond = jsonTranslateOverTime.getFloat("yUnitsPerMillisecond");
-    lowerLimit = jsonTranslateOverTime.getFloat("lowerLimit");
-    upperLimit = jsonTranslateOverTime.getFloat("upperLimit");
+    movingLeft = flatTranslateOverTimeComponent.movingLeft();
+    xUnitsPerMillisecond = flatTranslateOverTimeComponent.xUnitsPerMillisecond();
+    leftLimit = flatTranslateOverTimeComponent.leftLimit();
+    rightLimit = flatTranslateOverTimeComponent.rightLimit();
     
-    movingForward = jsonTranslateOverTime.getBoolean("movingForward");
-    zUnitsPerMillisecond = jsonTranslateOverTime.getFloat("zUnitsPerMillisecond");
-    forwardLimit = jsonTranslateOverTime.getFloat("forwardLimit");
-    backwardLimit = jsonTranslateOverTime.getFloat("backwardLimit");
+    movingDown = flatTranslateOverTimeComponent.movingDown();
+    yUnitsPerMillisecond = flatTranslateOverTimeComponent.yUnitsPerMillisecond();
+    lowerLimit = flatTranslateOverTimeComponent.lowerLimit();
+    upperLimit = flatTranslateOverTimeComponent.upperLimit();
+    
+    movingForward = flatTranslateOverTimeComponent.movingForward();
+    zUnitsPerMillisecond = flatTranslateOverTimeComponent.zUnitsPerMillisecond();
+    forwardLimit = flatTranslateOverTimeComponent.forwardLimit();
+    backwardLimit = flatTranslateOverTimeComponent.backwardLimit();
   } 
   
   @Override public ComponentType getComponentType()
@@ -522,6 +549,25 @@ public class TranslateOverTimeComponent extends Component
     
     //actionBuffer.add(translateAction);
   }
+  
+  @Override public String toString()
+  {
+    String stringTranslateOverTimeComponent = new String();
+    stringTranslateOverTimeComponent += "=========== TranslateOverTimeComponent ===========\n";
+    stringTranslateOverTimeComponent += "\tmovingLeft: " + movingLeft + "\n";
+    stringTranslateOverTimeComponent += "\txUnitsPerMillisecond: " + xUnitsPerMillisecond + "\n";
+    stringTranslateOverTimeComponent += "\tleftLimit: " + leftLimit + "\n";
+    stringTranslateOverTimeComponent += "\trightLimit: " + rightLimit + "\n";
+    stringTranslateOverTimeComponent += "\tmovingDown: " + movingDown + "\n";
+    stringTranslateOverTimeComponent += "\tyUnitsPerMillisecond: " + yUnitsPerMillisecond + "\n";
+    stringTranslateOverTimeComponent += "\tlowerLimit: " + lowerLimit + "\n";
+    stringTranslateOverTimeComponent += "\tupperLimit: " + upperLimit + "\n";
+    stringTranslateOverTimeComponent += "\tmovingForward: " + movingForward + "\n";
+    stringTranslateOverTimeComponent += "\tzUnitsPerMillisecond: " + zUnitsPerMillisecond + "\n";
+    stringTranslateOverTimeComponent += "\tforwardLimit: " + forwardLimit + "\n";
+    stringTranslateOverTimeComponent += "\tbackwardLimit: " + backwardLimit + "\n";
+    return stringTranslateOverTimeComponent;
+  }
 }
 
 
@@ -547,22 +593,27 @@ public class RotateOverTimeComponent extends Component
     zRadiansPerMillisecond = xmlComponent.getFloat("zRadiansPerSecond") / 1000.0f;
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonRotateOverTime = new JSONObject();
+    FlatRotateOverTimeComponent.startFlatRotateOverTimeComponent(builder);
+    FlatRotateOverTimeComponent.addXRadiansPerMillisecond(builder, xRadiansPerMillisecond);
+    FlatRotateOverTimeComponent.addYRadiansPerMillisecond(builder, yRadiansPerMillisecond);
+    FlatRotateOverTimeComponent.addZRadiansPerMillisecond(builder, zRadiansPerMillisecond);
+    int flatRotateOverTimeComponentOffset = FlatRotateOverTimeComponent.endFlatRotateOverTimeComponent(builder);
     
-    jsonRotateOverTime.setFloat("xRadiansPerMillisecond", xRadiansPerMillisecond);
-    jsonRotateOverTime.setFloat("yRadiansPerMillisecond", yRadiansPerMillisecond);
-    jsonRotateOverTime.setFloat("zRadiansPerMillisecond", zRadiansPerMillisecond);
-    
-    return jsonRotateOverTime;
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatRotateOverTimeComponent);
+    FlatComponentTable.addComponent(builder, flatRotateOverTimeComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonRotateOverTime)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    xRadiansPerMillisecond = jsonRotateOverTime.getFloat("xRadiansPerMillisecond");
-    yRadiansPerMillisecond = jsonRotateOverTime.getFloat("yRadiansPerMillisecond");
-    zRadiansPerMillisecond = jsonRotateOverTime.getFloat("zRadiansPerMillisecond");
+    FlatRotateOverTimeComponent flatRotateOverTimeComponent = (FlatRotateOverTimeComponent)componentTable;
+    
+    xRadiansPerMillisecond = flatRotateOverTimeComponent.xRadiansPerMillisecond();
+    yRadiansPerMillisecond = flatRotateOverTimeComponent.yRadiansPerMillisecond();
+    zRadiansPerMillisecond = flatRotateOverTimeComponent.zRadiansPerMillisecond();
   }
   
   @Override public ComponentType getComponentType()
@@ -584,6 +635,16 @@ public class RotateOverTimeComponent extends Component
     rotateAction.setRotation(rotation);
     
     //actionBuffer.add(rotateAction);
+  }
+  
+  @Override public String toString()
+  {
+    String stringRotateOverTimeComponent = new String();
+    stringRotateOverTimeComponent += "======= RotateOverTimeComponent =======\n";
+    stringRotateOverTimeComponent += "\txRadiansPerMillisecond: " + xRadiansPerMillisecond + "\n";
+    stringRotateOverTimeComponent += "\tyRadiansPerMillisecond: " + yRadiansPerMillisecond + "\n";
+    stringRotateOverTimeComponent += "\tzRadiansPerMillisecond: " + zRadiansPerMillisecond + "\n";
+    return stringRotateOverTimeComponent;
   }
 }
 
@@ -643,44 +704,47 @@ public class ScaleOverTimeComponent extends Component
     zUpperLimit = xmlComponent.getFloat("zUpperLimit");
   }
   
-  @Override public JSONObject serialize()
+  @Override public int serialize(FlatBufferBuilder builder)
   {
-    JSONObject jsonScaleOverTime = new JSONObject();
+    FlatScaleOverTimeComponent.startFlatScaleOverTimeComponent(builder);
+    FlatScaleOverTimeComponent.addXScalingUp(builder, xScalingUp);
+    FlatScaleOverTimeComponent.addXScalePerMillisecond(builder, xScalePerMillisecond);
+    FlatScaleOverTimeComponent.addXLowerLimit(builder, xLowerLimit);
+    FlatScaleOverTimeComponent.addXUpperLimit(builder, xUpperLimit);
+    FlatScaleOverTimeComponent.addYScalingUp(builder, yScalingUp);
+    FlatScaleOverTimeComponent.addYScalePerMillisecond(builder, yScalePerMillisecond);
+    FlatScaleOverTimeComponent.addYLowerLimit(builder, yLowerLimit);
+    FlatScaleOverTimeComponent.addYUpperLimit(builder, yUpperLimit);
+    FlatScaleOverTimeComponent.addZScalingUp(builder, zScalingUp);
+    FlatScaleOverTimeComponent.addZScalePerMillisecond(builder, zScalePerMillisecond);
+    FlatScaleOverTimeComponent.addZLowerLimit(builder, zLowerLimit);
+    FlatScaleOverTimeComponent.addZUpperLimit(builder, zUpperLimit);
+    int flatScaleOverTimeComponentOffset = FlatScaleOverTimeComponent.endFlatScaleOverTimeComponent(builder);
     
-    jsonScaleOverTime.setBoolean("xScalingUp", xScalingUp);
-    jsonScaleOverTime.setFloat("xScalePerMillisecond", xScalePerMillisecond);
-    jsonScaleOverTime.setFloat("xLowerLimit", xLowerLimit);
-    jsonScaleOverTime.setFloat("xUpperLimit", xUpperLimit);
-    
-    jsonScaleOverTime.setBoolean("yScalingUp", yScalingUp);
-    jsonScaleOverTime.setFloat("yScalePerMillisecond", yScalePerMillisecond);
-    jsonScaleOverTime.setFloat("yLowerLimit", yLowerLimit);
-    jsonScaleOverTime.setFloat("yUpperLimit", yUpperLimit);
-    
-    jsonScaleOverTime.setBoolean("zScalingUp", zScalingUp);
-    jsonScaleOverTime.setFloat("zScalePerMillisecond", zScalePerMillisecond);
-    jsonScaleOverTime.setFloat("zLowerLimit", zLowerLimit);
-    jsonScaleOverTime.setFloat("zUpperLimit", zUpperLimit);
-    
-    return jsonScaleOverTime;
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatScaleOverTimeComponent);
+    FlatComponentTable.addComponent(builder, flatScaleOverTimeComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
   }
   
-  @Override public void deserialize(JSONObject jsonScaleOverTime)
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
   {
-    xScalingUp = jsonScaleOverTime.getBoolean("xScalingUp");
-    xScalePerMillisecond = jsonScaleOverTime.getFloat("xScalePerMillisecond");
-    xLowerLimit = jsonScaleOverTime.getFloat("xLowerLimit");
-    xUpperLimit = jsonScaleOverTime.getFloat("xUpperLimit");
+    FlatScaleOverTimeComponent flatScaleOverTimeComponent = (FlatScaleOverTimeComponent)componentTable;
     
-    yScalingUp = jsonScaleOverTime.getBoolean("yScalingUp");
-    yScalePerMillisecond = jsonScaleOverTime.getFloat("yScalePerMillisecond");
-    yLowerLimit = jsonScaleOverTime.getFloat("yLowerLimit");
-    yUpperLimit = jsonScaleOverTime.getFloat("yUpperLimit");
+    xScalingUp = flatScaleOverTimeComponent.xScalingUp();
+    xScalePerMillisecond = flatScaleOverTimeComponent.xScalePerMillisecond();
+    xLowerLimit = flatScaleOverTimeComponent.xLowerLimit();
+    xUpperLimit = flatScaleOverTimeComponent.xUpperLimit();
     
-    zScalingUp = jsonScaleOverTime.getBoolean("zScalingUp");
-    zScalePerMillisecond = jsonScaleOverTime.getFloat("zScalePerMillisecond");
-    zLowerLimit = jsonScaleOverTime.getFloat("zLowerLimit");
-    zUpperLimit = jsonScaleOverTime.getFloat("zUpperLimit");
+    yScalingUp = flatScaleOverTimeComponent.yScalingUp();
+    yScalePerMillisecond = flatScaleOverTimeComponent.yScalePerMillisecond();
+    yLowerLimit = flatScaleOverTimeComponent.yLowerLimit();
+    yUpperLimit = flatScaleOverTimeComponent.yUpperLimit();
+    
+    zScalingUp = flatScaleOverTimeComponent.zScalingUp();
+    zScalePerMillisecond = flatScaleOverTimeComponent.zScalePerMillisecond();
+    zLowerLimit = flatScaleOverTimeComponent.zLowerLimit();
+    zUpperLimit = flatScaleOverTimeComponent.zUpperLimit();
   }
   
   @Override public ComponentType getComponentType()
@@ -795,6 +859,25 @@ public class ScaleOverTimeComponent extends Component
     
     //actionBuffer.add(scaleAction);
   }
+  
+  @Override public String toString()
+  {
+    String stringScaleOverTimeComponent = new String();
+    stringScaleOverTimeComponent += "======= ScaleOverTimeComponent =======\n";
+    stringScaleOverTimeComponent += "\txScalingUp: " + xScalingUp + "\n";
+    stringScaleOverTimeComponent += "\txScalePerMillisecond: " + xScalePerMillisecond + "\n";
+    stringScaleOverTimeComponent += "\txLowerLimit: " + xLowerLimit + "\n";
+    stringScaleOverTimeComponent += "\txUpperLimit: " + xUpperLimit + "\n";
+    stringScaleOverTimeComponent += "\tyScalingUp: " + yScalingUp + "\n";
+    stringScaleOverTimeComponent += "\tyScalePerMillisecond: " + yScalePerMillisecond + "\n";
+    stringScaleOverTimeComponent += "\tyLowerLimit: " + yLowerLimit + "\n";
+    stringScaleOverTimeComponent += "\tyUpperLimit: " + yUpperLimit + "\n";
+    stringScaleOverTimeComponent += "\tzScalingUp: " + zScalingUp + "\n";
+    stringScaleOverTimeComponent += "\tzScalePerMillisecond: " + zScalePerMillisecond + "\n";
+    stringScaleOverTimeComponent += "\tzLowerLimit: " + zLowerLimit + "\n";
+    stringScaleOverTimeComponent += "\tzUpperLimit: " + zUpperLimit + "\n";
+    return stringScaleOverTimeComponent;
+  }
 }
 
 
@@ -834,42 +917,40 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
   return component;
 }
 
-public IComponent deserializeComponent(GameObject gameObject, JSONObject jsonComponent)
+public IComponent deserializeComponent(GameObject gameObject, FlatComponentTable flatComponentTable)
 {
   IComponent component = null;
+  com.google.flatbuffers.Table componentTable = null;
   
-  ComponentType componentType = componentTypeStringToEnum(jsonComponent.getString("componentType"));
-  
-  switch (componentType)
+  switch (flatComponentTable.componentType())
   {
-    case RENDER:
+    case FlatComponentUnion.FlatRenderComponent:
       component = new RenderComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatRenderComponent());
       break;
       
-    case PERSPECTIVE_CAMERA:
-      component = new PerspectiveCameraComponent(gameObject);
-      break;
-      
-    case TRANSLATE_OVER_TIME:
+    case FlatComponentUnion.FlatTranslateOverTimeComponent:
       component = new TranslateOverTimeComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatTranslateOverTimeComponent());
       break;
       
-    case ROTATE_OVER_TIME:
+    case FlatComponentUnion.FlatRotateOverTimeComponent:
       component = new RotateOverTimeComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatRotateOverTimeComponent());
       break;
       
-    case SCALE_OVER_TIME:
+    case FlatComponentUnion.FlatScaleOverTimeComponent:
       component = new ScaleOverTimeComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatScaleOverTimeComponent());
       break;
       
     default:
-      println("Assertion: ComponentType not added to deserializeComponent.");
       assert(false);
   }
   
-  if (component != null)
+  if (component != null && componentTable != null)
   {
-    component.deserialize(jsonComponent);
+    component.deserialize(componentTable);
   }
   
   return component;
