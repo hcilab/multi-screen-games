@@ -1,0 +1,72 @@
+<GameObject>
+	<GoalListener 
+		ballParameterName="ball" 
+		playerID="2" 
+		scoreFullSpriteName="score_full"
+		r="0.0" g="255.0" b="0.0"/>
+
+	<Render>
+		<Sprite name="score_empty">
+			<Translation x="-30.0" y="30.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="0.0" y="30.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="30.0" y="30.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="-30.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="0.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="30.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="-30.0" y="-30.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="0.0" y="-30.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+
+		<Sprite name="score_empty">
+			<Translation x="30.0" y="-30.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.6" y="0.45" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+	</Render>
+</GameObject>

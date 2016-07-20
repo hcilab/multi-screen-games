@@ -1049,7 +1049,7 @@ public class Scene implements IScene
       ((ISpriteInstance)entry.getValue()).render();
     }
     
-    //perspectiveCamera.apply();
+    perspectiveCamera.apply();
     
     for (Map.Entry entry : modelInstances.entrySet())
     {

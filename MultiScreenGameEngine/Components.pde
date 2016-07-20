@@ -443,7 +443,7 @@ public class RenderComponent extends NetworkComponent
       modelInstance.setRotation(adjustedRotation);
       
       PVector scale = gameObject.getScale();
-      PVector scaleOffset = spriteScaleOffsets.get(i);
+      PVector scaleOffset = modelScaleOffsets.get(i);
       PVector adjustedScale = new PVector(scale.x * scaleOffset.x, scale.y * scaleOffset.y, scale.z * scaleOffset.z);
       modelInstance.setScale(adjustedScale);
     }

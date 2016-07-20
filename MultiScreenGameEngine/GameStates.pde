@@ -125,7 +125,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void onEnter()
   {
-    sharedGameObjectManager.fromXML("levels/shared_level.xml");
+    sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
     
     mainServer = new MSServer(this);
     mainServer.begin();
@@ -186,7 +186,7 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
   
   @Override public void onEnter()
   {
-    localGameObjectManager.fromXML("levels/client_level_1.xml");
+    localGameObjectManager.fromXML("levels/box_example/client_level_1.xml");
     
     mainClient = new MSClient(this);
     

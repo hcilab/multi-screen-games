@@ -25,11 +25,14 @@ table FlatModel
 table FlatRenderComponent
 {
     sprites : [FlatSprite];
-    models : [FlatModel];
-}
+    spriteTranslationOffsets : [FlatVec3];
+    spriteRotationOffsets : [FlatVec3];
+    spriteScaleOffsets : [FlatVec3];
 
-table FlatPerspectiveCameraComponent
-{
+    models : [FlatModel];
+    modelTranslationOffsets : [FlatVec3];
+    modelRotationOffsets : [FlatVec3];
+    modelScaleOffsets : [FlatVec3];
 }
 
 table FlatTranslateOverTimeComponent
@@ -78,7 +81,6 @@ table FlatScaleOverTimeComponent
 union FlatComponentUnion
 {
     FlatRenderComponent,
-    FlatPerspectiveCameraComponent,
     FlatTranslateOverTimeComponent,
     FlatRotateOverTimeComponent,
     FlatScaleOverTimeComponent

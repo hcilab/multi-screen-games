@@ -64,9 +64,10 @@ void setup()
   scene = new Scene();
   gameStateController = new GameStateController();
   
-  spriteManager.loadAllSprites();
-  //modelManager.loadAllModels();
-  gameStateController.pushState(new GameState_TestState());
+  //spriteManager.loadAllSprites();
+  modelManager.loadAllModels();
+  //gameStateController.pushState(new GameState_TestState());
+  gameStateController.pushState(new GameState_ChooseClientServerState());
   
   lastFrameTime = millis();
 }

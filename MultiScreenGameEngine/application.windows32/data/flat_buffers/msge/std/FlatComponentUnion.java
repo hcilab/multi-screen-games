@@ -6,12 +6,11 @@ public final class FlatComponentUnion {
   private FlatComponentUnion() { }
   public static final byte NONE = 0;
   public static final byte FlatRenderComponent = 1;
-  public static final byte FlatPerspectiveCameraComponent = 2;
-  public static final byte FlatTranslateOverTimeComponent = 3;
-  public static final byte FlatRotateOverTimeComponent = 4;
-  public static final byte FlatScaleOverTimeComponent = 5;
+  public static final byte FlatTranslateOverTimeComponent = 2;
+  public static final byte FlatRotateOverTimeComponent = 3;
+  public static final byte FlatScaleOverTimeComponent = 4;
 
-  private static final String[] names = { "NONE", "FlatRenderComponent", "FlatPerspectiveCameraComponent", "FlatTranslateOverTimeComponent", "FlatRotateOverTimeComponent", "FlatScaleOverTimeComponent", };
+  private static final String[] names = { "NONE", "FlatRenderComponent", "FlatTranslateOverTimeComponent", "FlatRotateOverTimeComponent", "FlatScaleOverTimeComponent", };
 
   public static String name(int e) { return names[e]; }
 };
