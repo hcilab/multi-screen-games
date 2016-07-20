@@ -16,26 +16,68 @@ public final class FlatRenderComponent extends Table {
   public FlatSprite sprites(int j) { return sprites(new FlatSprite(), j); }
   public FlatSprite sprites(FlatSprite obj, int j) { int o = __offset(4); return o != 0 ? obj.__init(__indirect(__vector(o) + j * 4), bb) : null; }
   public int spritesLength() { int o = __offset(4); return o != 0 ? __vector_len(o) : 0; }
+  public msge.std.FlatVec3 spriteTranslationOffsets(int j) { return spriteTranslationOffsets(new msge.std.FlatVec3(), j); }
+  public msge.std.FlatVec3 spriteTranslationOffsets(msge.std.FlatVec3 obj, int j) { int o = __offset(6); return o != 0 ? obj.__init(__vector(o) + j * 12, bb) : null; }
+  public int spriteTranslationOffsetsLength() { int o = __offset(6); return o != 0 ? __vector_len(o) : 0; }
+  public msge.std.FlatVec3 spriteRotationOffsets(int j) { return spriteRotationOffsets(new msge.std.FlatVec3(), j); }
+  public msge.std.FlatVec3 spriteRotationOffsets(msge.std.FlatVec3 obj, int j) { int o = __offset(8); return o != 0 ? obj.__init(__vector(o) + j * 12, bb) : null; }
+  public int spriteRotationOffsetsLength() { int o = __offset(8); return o != 0 ? __vector_len(o) : 0; }
+  public msge.std.FlatVec3 spriteScaleOffsets(int j) { return spriteScaleOffsets(new msge.std.FlatVec3(), j); }
+  public msge.std.FlatVec3 spriteScaleOffsets(msge.std.FlatVec3 obj, int j) { int o = __offset(10); return o != 0 ? obj.__init(__vector(o) + j * 12, bb) : null; }
+  public int spriteScaleOffsetsLength() { int o = __offset(10); return o != 0 ? __vector_len(o) : 0; }
   public FlatModel models(int j) { return models(new FlatModel(), j); }
-  public FlatModel models(FlatModel obj, int j) { int o = __offset(6); return o != 0 ? obj.__init(__indirect(__vector(o) + j * 4), bb) : null; }
-  public int modelsLength() { int o = __offset(6); return o != 0 ? __vector_len(o) : 0; }
+  public FlatModel models(FlatModel obj, int j) { int o = __offset(12); return o != 0 ? obj.__init(__indirect(__vector(o) + j * 4), bb) : null; }
+  public int modelsLength() { int o = __offset(12); return o != 0 ? __vector_len(o) : 0; }
+  public msge.std.FlatVec3 modelTranslationOffsets(int j) { return modelTranslationOffsets(new msge.std.FlatVec3(), j); }
+  public msge.std.FlatVec3 modelTranslationOffsets(msge.std.FlatVec3 obj, int j) { int o = __offset(14); return o != 0 ? obj.__init(__vector(o) + j * 12, bb) : null; }
+  public int modelTranslationOffsetsLength() { int o = __offset(14); return o != 0 ? __vector_len(o) : 0; }
+  public msge.std.FlatVec3 modelRotationOffsets(int j) { return modelRotationOffsets(new msge.std.FlatVec3(), j); }
+  public msge.std.FlatVec3 modelRotationOffsets(msge.std.FlatVec3 obj, int j) { int o = __offset(16); return o != 0 ? obj.__init(__vector(o) + j * 12, bb) : null; }
+  public int modelRotationOffsetsLength() { int o = __offset(16); return o != 0 ? __vector_len(o) : 0; }
+  public msge.std.FlatVec3 modelScaleOffsets(int j) { return modelScaleOffsets(new msge.std.FlatVec3(), j); }
+  public msge.std.FlatVec3 modelScaleOffsets(msge.std.FlatVec3 obj, int j) { int o = __offset(18); return o != 0 ? obj.__init(__vector(o) + j * 12, bb) : null; }
+  public int modelScaleOffsetsLength() { int o = __offset(18); return o != 0 ? __vector_len(o) : 0; }
 
   public static int createFlatRenderComponent(FlatBufferBuilder builder,
       int spritesOffset,
-      int modelsOffset) {
-    builder.startObject(2);
+      int spriteTranslationOffsetsOffset,
+      int spriteRotationOffsetsOffset,
+      int spriteScaleOffsetsOffset,
+      int modelsOffset,
+      int modelTranslationOffsetsOffset,
+      int modelRotationOffsetsOffset,
+      int modelScaleOffsetsOffset) {
+    builder.startObject(8);
+    FlatRenderComponent.addModelScaleOffsets(builder, modelScaleOffsetsOffset);
+    FlatRenderComponent.addModelRotationOffsets(builder, modelRotationOffsetsOffset);
+    FlatRenderComponent.addModelTranslationOffsets(builder, modelTranslationOffsetsOffset);
     FlatRenderComponent.addModels(builder, modelsOffset);
+    FlatRenderComponent.addSpriteScaleOffsets(builder, spriteScaleOffsetsOffset);
+    FlatRenderComponent.addSpriteRotationOffsets(builder, spriteRotationOffsetsOffset);
+    FlatRenderComponent.addSpriteTranslationOffsets(builder, spriteTranslationOffsetsOffset);
     FlatRenderComponent.addSprites(builder, spritesOffset);
     return FlatRenderComponent.endFlatRenderComponent(builder);
   }
 
-  public static void startFlatRenderComponent(FlatBufferBuilder builder) { builder.startObject(2); }
+  public static void startFlatRenderComponent(FlatBufferBuilder builder) { builder.startObject(8); }
   public static void addSprites(FlatBufferBuilder builder, int spritesOffset) { builder.addOffset(0, spritesOffset, 0); }
   public static int createSpritesVector(FlatBufferBuilder builder, int[] data) { builder.startVector(4, data.length, 4); for (int i = data.length - 1; i >= 0; i--) builder.addOffset(data[i]); return builder.endVector(); }
   public static void startSpritesVector(FlatBufferBuilder builder, int numElems) { builder.startVector(4, numElems, 4); }
-  public static void addModels(FlatBufferBuilder builder, int modelsOffset) { builder.addOffset(1, modelsOffset, 0); }
+  public static void addSpriteTranslationOffsets(FlatBufferBuilder builder, int spriteTranslationOffsetsOffset) { builder.addOffset(1, spriteTranslationOffsetsOffset, 0); }
+  public static void startSpriteTranslationOffsetsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(12, numElems, 4); }
+  public static void addSpriteRotationOffsets(FlatBufferBuilder builder, int spriteRotationOffsetsOffset) { builder.addOffset(2, spriteRotationOffsetsOffset, 0); }
+  public static void startSpriteRotationOffsetsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(12, numElems, 4); }
+  public static void addSpriteScaleOffsets(FlatBufferBuilder builder, int spriteScaleOffsetsOffset) { builder.addOffset(3, spriteScaleOffsetsOffset, 0); }
+  public static void startSpriteScaleOffsetsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(12, numElems, 4); }
+  public static void addModels(FlatBufferBuilder builder, int modelsOffset) { builder.addOffset(4, modelsOffset, 0); }
   public static int createModelsVector(FlatBufferBuilder builder, int[] data) { builder.startVector(4, data.length, 4); for (int i = data.length - 1; i >= 0; i--) builder.addOffset(data[i]); return builder.endVector(); }
   public static void startModelsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(4, numElems, 4); }
+  public static void addModelTranslationOffsets(FlatBufferBuilder builder, int modelTranslationOffsetsOffset) { builder.addOffset(5, modelTranslationOffsetsOffset, 0); }
+  public static void startModelTranslationOffsetsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(12, numElems, 4); }
+  public static void addModelRotationOffsets(FlatBufferBuilder builder, int modelRotationOffsetsOffset) { builder.addOffset(6, modelRotationOffsetsOffset, 0); }
+  public static void startModelRotationOffsetsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(12, numElems, 4); }
+  public static void addModelScaleOffsets(FlatBufferBuilder builder, int modelScaleOffsetsOffset) { builder.addOffset(7, modelScaleOffsetsOffset, 0); }
+  public static void startModelScaleOffsetsVector(FlatBufferBuilder builder, int numElems) { builder.startVector(12, numElems, 4); }
   public static int endFlatRenderComponent(FlatBufferBuilder builder) {
     int o = builder.endObject();
     return o;

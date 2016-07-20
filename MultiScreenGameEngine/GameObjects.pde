@@ -154,7 +154,10 @@ public class GameObject implements IGameObject
     int[] flatComponents = new int[components.size()];
     for (int i = 0; i < components.size(); i++)
     {
-      flatComponents[i] = components.get(i).serialize(builder);
+      if (components.get(i) instanceof INetworkComponent)
+      {
+        flatComponents[i] = ((INetworkComponent)components.get(i)).serialize(builder);
+      }
     }
     int flatComponentsVector = FlatGameObject.createComponentTablesVector(builder, flatComponents);
     

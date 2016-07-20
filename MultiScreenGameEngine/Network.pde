@@ -604,7 +604,7 @@ public class MSServer implements IServer
     }
     
     public void write(byte[] message)
-    {
+    { 
       if (isConnected())
       {
         pClient.write(message);

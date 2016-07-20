@@ -59,12 +59,13 @@ public interface IOrthographicCamera extends ICamera
 public interface ISprite
 {
   public String getName();
-  //public void from***(String fileName);
+  public void fromFile(String fileName, float minU, float maxU, float minV, float maxV); // gif, jpg, tga, or png
   public void render();
 }
 
 public interface ISpriteManager
 {
+  public void loadAllSprites();
   public ISprite getSprite(String name);
   public void free();
 }
@@ -96,6 +97,7 @@ public interface IModel
 
 public interface IModelManager
 {
+  public void loadAllModels();
   public IModel getModel(String name);
   public void free();
 }
@@ -454,10 +456,12 @@ public class OrthographicCamera extends Camera implements IOrthographicCamera
 public class Sprite implements ISprite
 {
   private String name;
+  private PShape pShape;
   
   public Sprite(String _name)
   {
     name = _name;
+    pShape = null;
   }
     
   @Override public String getName()
@@ -465,10 +469,21 @@ public class Sprite implements ISprite
     return name;
   }
   
-  //@Override public void from***(String fileName);
+  @Override public void fromFile(String fileName, float minU, float maxU, float minV, float maxV)
+  {
+    pShape = createShape();
+    pShape.beginShape();
+    texture(loadImage(fileName));
+    vertex(-0.5f, -0.5f, 0.0f, minU, minV);
+    vertex(0.5f, -0.5f, 0.0f, maxU, minV);
+    vertex(-0.5f, 0.5f, 0.0f, minU, maxV);
+    vertex(0.5f, 0.5f, 0.0f, maxU, maxV);
+    pShape.endShape();
+  }
   
   @Override public void render()
   {
+    shape(pShape);
   }
 }
 
@@ -486,6 +501,16 @@ public class SpriteManager implements ISpriteManager
     assert(manifest.getName().equals("Sprites"));
   }
   
+  @Override public void loadAllSprites()
+  {
+    for (XML xmlSprite : manifest.getChildren("Sprite"))
+    {
+      ISprite sprite = new Sprite(xmlSprite.getString("name"));
+      sprite.fromFile(xmlSprite.getString("fileName"), xmlSprite.getFloat("minU"), xmlSprite.getFloat("maxU"), xmlSprite.getFloat("minV"), xmlSprite.getFloat("maxV"));
+      loadedSprites.put(sprite.getName(), sprite);
+    }
+  }
+  
   @Override public ISprite getSprite(String name)
   {
     ISprite sprite = loadedSprites.get(name);
@@ -500,7 +525,8 @@ public class SpriteManager implements ISpriteManager
       if (xmlSprite.getString("name").equals(name))
       {
         sprite = new Sprite(name);
-        //sprite.from***(xmlSprite.getString("fileName"));
+        sprite.fromFile(xmlSprite.getString("fileName"), xmlSprite.getFloat("minU"), xmlSprite.getFloat("maxU"), xmlSprite.getFloat("minV"), xmlSprite.getFloat("maxV"));
+        loadedSprites.put(sprite.getName(), sprite);
         return sprite;
       }
     }
@@ -719,6 +745,16 @@ public class ModelManager implements IModelManager
     assert(manifest.getName().equals("Models"));
   }
   
+  @Override public void loadAllModels()
+  {
+    for (XML xmlModel : manifest.getChildren("Model"))
+    {
+      IModel model = new Model(xmlModel.getString("name"));
+      model.fromOBJ(xmlModel.getString("objFile"));
+      loadedModels.put(model.getName(), model);
+    }
+  }
+  
   @Override public IModel getModel(String name)
   {
     IModel model = loadedModels.get(name);
@@ -734,6 +770,7 @@ public class ModelManager implements IModelManager
       {
         model = new Model(name);
         model.fromOBJ(xmlModel.getString("objFile"));
+        loadedModels.put(name, model);
         return model;
       }
     }

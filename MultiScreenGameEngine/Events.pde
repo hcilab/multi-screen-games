@@ -12,6 +12,27 @@
 // EventManager constructor a new collection for the type. 
 public enum EventType
 {
+  UP_BUTTON_PRESSED,
+  DOWN_BUTTON_PRESSED,
+  LEFT_BUTTON_PRESSED,
+  RIGHT_BUTTON_PRESSED,
+  
+  W_BUTTON_PRESSED,
+  A_BUTTON_PRESSED,
+  S_BUTTON_PRESSED,
+  D_BUTTON_PRESSED,
+  
+  UP_BUTTON_RELEASED,
+  DOWN_BUTTON_RELEASED,
+  LEFT_BUTTON_RELEASED,
+  RIGHT_BUTTON_RELEASED,
+  
+  W_BUTTON_RELEASED,
+  A_BUTTON_RELEASED,
+  S_BUTTON_RELEASED,
+  D_BUTTON_RELEASED,
+  
+  GOAL_SCORED,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -181,7 +202,27 @@ public class EventManager implements IEventManager
     queuedEvents = new HashMap<EventType, ArrayList<IEvent>>();
     readyEvents = new HashMap<EventType, ArrayList<IEvent>>();
     
-    //addEventTypeToMaps(EventType.ACTION);
+    addEventTypeToMaps(EventType.UP_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.DOWN_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.LEFT_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.RIGHT_BUTTON_PRESSED);
+    
+    addEventTypeToMaps(EventType.W_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.A_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.S_BUTTON_PRESSED);
+    addEventTypeToMaps(EventType.D_BUTTON_PRESSED);
+    
+    addEventTypeToMaps(EventType.UP_BUTTON_RELEASED);
+    addEventTypeToMaps(EventType.DOWN_BUTTON_RELEASED);
+    addEventTypeToMaps(EventType.LEFT_BUTTON_RELEASED);
+    addEventTypeToMaps(EventType.RIGHT_BUTTON_RELEASED);
+    
+    addEventTypeToMaps(EventType.W_BUTTON_RELEASED);
+    addEventTypeToMaps(EventType.A_BUTTON_RELEASED);
+    addEventTypeToMaps(EventType.S_BUTTON_RELEASED);
+    addEventTypeToMaps(EventType.D_BUTTON_RELEASED);
+    
+    addEventTypeToMaps(EventType.GOAL_SCORED);
   }
   
   private void addEventTypeToMaps(EventType eventType)

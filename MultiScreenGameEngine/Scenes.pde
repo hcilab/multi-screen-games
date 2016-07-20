@@ -21,9 +21,6 @@ public interface ICamera
   public void setToDefaults();
   
   public void apply();
-  
-  public JSONObject serialize();
-  public void deserialize(JSONObject jsonCamera);
 }
 
 public interface IPerspectiveCamera extends ICamera
@@ -59,12 +56,13 @@ public interface IOrthographicCamera extends ICamera
 public interface ISprite
 {
   public String getName();
-  //public void from***(String fileName);
+  public void fromFile(String fileName, float minU, float maxU, float minV, float maxV); // gif, jpg, tga, or png
   public void render();
 }
 
 public interface ISpriteManager
 {
+  public void loadAllSprites();
   public ISprite getSprite(String name);
   public void free();
 }
@@ -76,10 +74,14 @@ public interface ISpriteInstance
   public PVector getTranslation();
   public PVector getRotation();
   public PVector getScale();
+  public PVector getTint();
+  public float getAlpha();
   
   public void setTranslation(PVector translation);
   public void setRotation(PVector rotation);
   public void setScale(PVector scale);
+  public void setTint(PVector pTint);
+  public void setAlpha(float pAlpha);
   
   public void render();
   
@@ -96,6 +98,7 @@ public interface IModel
 
 public interface IModelManager
 {
+  public void loadAllModels();
   public IModel getModel(String name);
   public void free();
 }
@@ -116,6 +119,23 @@ public interface IModelInstance
   
   public int serialize(FlatBufferBuilder builder);
   public void deserialize(FlatModel flatModel);
+}
+
+public interface IFontManager
+{
+  public PFont getFont(String name);
+}
+
+public interface ITextInstance
+{
+  public String getName();
+  
+  public void fromXML(XML xmlTextLine);
+  
+  public void render();
+  
+  //public int serialize(FlatBufferBuilder builder);
+  //public void deserialize(FlatText flatText);
 }
 
 public interface IScene
@@ -184,7 +204,7 @@ public abstract class Camera implements ICamera
   
   @Override public void setToDefaults()
   {
-    position = new PVector(0.0f, 0.0f, 10.0f);
+    position = new PVector(0.0f, 0.0f, -10.0f);
     target = new PVector(0.0f, 0.0f, 0.0f);
     up = new PVector(0.0f, 1.0f, 0.0f);
   }
@@ -192,50 +212,6 @@ public abstract class Camera implements ICamera
   @Override public void apply()
   {
     camera(position.x, position.y, position.z, target.x, target.y, target.z, up.x, up.y, up.z);
-  }
-  
-  @Override public JSONObject serialize()
-  {
-    JSONObject jsonPosition = new JSONObject();
-    jsonPosition.setFloat("x", position.x);
-    jsonPosition.setFloat("y", position.y);
-    jsonPosition.setFloat("z", position.z);
-    
-    JSONObject jsonTarget = new JSONObject();
-    jsonTarget.setFloat("x", target.x);
-    jsonTarget.setFloat("y", target.y);
-    jsonTarget.setFloat("z", target.z);
-    
-    JSONObject jsonUp = new JSONObject();
-    jsonUp.setFloat("x", up.x);
-    jsonUp.setFloat("y", up.y);
-    jsonUp.setFloat("z", up.z);
-    
-    JSONObject jsonCamera = new JSONObject();
-    jsonCamera.setJSONObject("position", jsonPosition);
-    jsonCamera.setJSONObject("target", jsonTarget);
-    jsonCamera.setJSONObject("up", jsonUp);
-    
-    return jsonCamera;
-  }
-  
-  @Override public void deserialize(JSONObject jsonCamera)
-  {
-    JSONObject jsonPosition = jsonCamera.getJSONObject("position");
-    JSONObject jsonTarget = jsonCamera.getJSONObject("target");
-    JSONObject jsonUp = jsonCamera.getJSONObject("up");
-    
-    position.x = jsonPosition.getFloat("x");
-    position.y = jsonPosition.getFloat("y");
-    position.z = jsonPosition.getFloat("z");
-    
-    target.x = jsonTarget.getFloat("x");
-    target.y = jsonTarget.getFloat("y");
-    target.z = jsonTarget.getFloat("z");
-    
-    up.x = jsonUp.getFloat("x");
-    up.y = jsonUp.getFloat("y");
-    up.z = jsonUp.getFloat("z");
   }
 }
 
@@ -306,28 +282,6 @@ public class PerspectiveCamera extends Camera implements IPerspectiveCamera
     super.apply();
     
     perspective(fieldOfView, aspectRatio, near, far);
-  }
-  
-  @Override public JSONObject serialize()
-  {
-    JSONObject jsonPerspectiveCamera = super.serialize();
-    
-    jsonPerspectiveCamera.setFloat("fieldOfView", fieldOfView);
-    jsonPerspectiveCamera.setFloat("aspectRatio", aspectRatio);
-    jsonPerspectiveCamera.setFloat("near", near);
-    jsonPerspectiveCamera.setFloat("far", far);
-    
-    return jsonPerspectiveCamera;
-  }
-  
-  @Override public void deserialize(JSONObject jsonPerspectiveCamera)
-  {
-    super.deserialize(jsonPerspectiveCamera);
-    
-    fieldOfView = jsonPerspectiveCamera.getFloat("fieldOfView");
-    aspectRatio = jsonPerspectiveCamera.getFloat("aspectRatio");
-    near = jsonPerspectiveCamera.getFloat("near");
-    far = jsonPerspectiveCamera.getFloat("far");
   }
 }
 
@@ -423,41 +377,17 @@ public class OrthographicCamera extends Camera implements IOrthographicCamera
     super.apply();
     ortho(left, right, bottom, top, near, far);
   }
-  
-  @Override public JSONObject serialize()
-  {
-    JSONObject jsonOrthographicCamera = super.serialize();
-    
-    jsonOrthographicCamera.setFloat("left", left);
-    jsonOrthographicCamera.setFloat("right", right);
-    jsonOrthographicCamera.setFloat("bottom", bottom);
-    jsonOrthographicCamera.setFloat("top", top);
-    jsonOrthographicCamera.setFloat("near", near);
-    jsonOrthographicCamera.setFloat("far", far);
-    
-    return jsonOrthographicCamera;
-  }
-  
-  @Override public void deserialize(JSONObject jsonOrthographicCamera)
-  {
-    super.deserialize(jsonOrthographicCamera);
-    
-    left = jsonOrthographicCamera.getFloat("left");
-    right = jsonOrthographicCamera.getFloat("right");
-    bottom = jsonOrthographicCamera.getFloat("bottom");
-    top = jsonOrthographicCamera.getFloat("top");
-    near = jsonOrthographicCamera.getFloat("near");
-    far = jsonOrthographicCamera.getFloat("far");
-  }
 }
 
 public class Sprite implements ISprite
 {
   private String name;
+  private PShape pShape;
   
   public Sprite(String _name)
   {
     name = _name;
+    pShape = null;
   }
     
   @Override public String getName()
@@ -465,10 +395,22 @@ public class Sprite implements ISprite
     return name;
   }
   
-  //@Override public void from***(String fileName);
+  @Override public void fromFile(String fileName, float minU, float maxU, float minV, float maxV)
+  {
+    pShape = createShape();
+    pShape.beginShape();
+    pShape.vertex(-0.5f, -0.5f, 0.0f, maxU, minV);
+    pShape.vertex(0.5f, -0.5f, 0.0f, minU, minV);
+    pShape.vertex(0.5f, 0.5f, 0.0f, minU, maxV);
+    pShape.vertex(-0.5f, 0.5f, 0.0f, maxU, maxV);
+    pShape.texture(materialManager.getTexture(fileName));
+    pShape.endShape(CLOSE);
+    pShape.disableStyle();
+  }
   
   @Override public void render()
   {
+    shape(pShape);
   }
 }
 
@@ -486,6 +428,14 @@ public class SpriteManager implements ISpriteManager
     assert(manifest.getName().equals("Sprites"));
   }
   
+  @Override public void loadAllSprites()
+  {
+    for (XML xmlSprite : manifest.getChildren("Sprite"))
+    {
+      loadSprite(xmlSprite.getString("name"), xmlSprite);
+    }
+  }
+  
   @Override public ISprite getSprite(String name)
   {
     ISprite sprite = loadedSprites.get(name);
@@ -499,14 +449,20 @@ public class SpriteManager implements ISpriteManager
     {
       if (xmlSprite.getString("name").equals(name))
       {
-        sprite = new Sprite(name);
-        //sprite.from***(xmlSprite.getString("fileName"));
-        return sprite;
+        return loadSprite(name, xmlSprite);
       }
     }
     
     println("WARNING: No such sprite by name: " + name + " found in sprites-manifest.");
     return null;
+  }
+  
+  private ISprite loadSprite(String name, XML xmlSprite)
+  {
+    ISprite sprite = new Sprite(name);
+    sprite.fromFile(xmlSprite.getString("file"), xmlSprite.getFloat("minU"), xmlSprite.getFloat("maxU"), xmlSprite.getFloat("minV"), xmlSprite.getFloat("maxV"));
+    loadedSprites.put(sprite.getName(), sprite);
+    return sprite;
   }
   
   @Override public void free()
@@ -523,13 +479,19 @@ public class SpriteInstance implements ISpriteInstance
   private PVector rotation;
   private PVector scale;
   
+  private PVector tintColor;
+  private float alpha;
+  
   public SpriteInstance(String spriteName)
   {
     sprite = spriteManager.getSprite(spriteName);
     
     translation = new PVector(0.0f, 0.0f, 0.0f);
     rotation = new PVector(0.0f, 0.0f, 0.0f);
-    scale = new PVector(1.0f, 1.0f);
+    scale = new PVector(1.0f, 1.0f, 1.0f);
+    
+    tintColor = new PVector(255.0f, 255.0f, 255.0f);
+    alpha = 255.0f;
   }
   
   @Override public ISprite getSprite()
@@ -552,6 +514,16 @@ public class SpriteInstance implements ISpriteInstance
     return scale;
   }
   
+  @Override public PVector getTint()
+  {
+    return tintColor;
+  }
+  
+  @Override public float getAlpha()
+  {
+    return alpha;
+  }
+  
   @Override public void setTranslation(PVector _translation)
   {
     translation = _translation;
@@ -567,6 +539,16 @@ public class SpriteInstance implements ISpriteInstance
     scale = _scale;
   }
   
+  @Override public void setTint(PVector pTint)
+  {
+    tintColor = pTint;
+  }
+  
+  @Override public void setAlpha(float pAlpha)
+  {
+    alpha = pAlpha;
+  }
+  
   @Override public void render()
   {
     pushMatrix();
@@ -576,6 +558,9 @@ public class SpriteInstance implements ISpriteInstance
     rotateY(rotation.y);
     rotateZ(rotation.z);
     scale(scale.x, scale.y, scale.z);
+    
+    noStroke();
+    tint(tintColor.x, tintColor.y, tintColor.z, alpha);
     
     sprite.render();
     
@@ -719,6 +704,16 @@ public class ModelManager implements IModelManager
     assert(manifest.getName().equals("Models"));
   }
   
+  @Override public void loadAllModels()
+  {
+    for (XML xmlModel : manifest.getChildren("Model"))
+    {
+      IModel model = new Model(xmlModel.getString("name"));
+      model.fromOBJ(xmlModel.getString("objFile"));
+      loadedModels.put(model.getName(), model);
+    }
+  }
+  
   @Override public IModel getModel(String name)
   {
     IModel model = loadedModels.get(name);
@@ -734,6 +729,7 @@ public class ModelManager implements IModelManager
       {
         model = new Model(name);
         model.fromOBJ(xmlModel.getString("objFile"));
+        loadedModels.put(name, model);
         return model;
       }
     }
@@ -843,6 +839,131 @@ public class ModelInstance implements IModelInstance
   }
 }
 
+public class FontManager implements IFontManager
+{
+  private static final int DEFAULT_FONT_SIZE = 32;
+  private static final boolean DEFAULT_ALIASING = true;
+  
+  private HashMap<String, PFont> fontMap;
+  
+  public FontManager()
+  {
+    fontMap = new HashMap<String, PFont>();
+  }
+  
+  @Override public PFont getFont(String name)
+  {
+    PFont font = fontMap.get(name);
+    
+    if (font != null)
+    {
+      return font;
+    }
+    
+    font = createFont(name, DEFAULT_FONT_SIZE, DEFAULT_ALIASING);
+    return font;
+  }
+}
+
+
+public class Text implements ITextInstance
+{
+  private String name;
+  private String string;
+  private PFont font;
+  private int alignX;
+  private int alignY;
+  private PVector translation;
+  private PVector rotation;
+  private PVector scale;
+  private color tcolor;
+  
+  public Text(String _name)
+  {
+    name = _name;
+  }
+  
+  @Override public String getName()
+  {
+    return name;
+  }
+  
+  @Override public void fromXML(XML xmlTextLine)
+  {
+    string = xmlTextLine.getString("string");
+    font = fontManager.getFont(xmlTextLine.getString("font"));
+    
+    String strAlignX = xmlTextLine.getString("alignX");
+    switch (strAlignX)
+    {
+      case "left":
+        alignX = LEFT;
+        break;
+        
+      case "right":
+        alignX = RIGHT;
+        break;
+        
+      case "center":
+      default:
+        alignX = CENTER;
+        break;
+    }
+    
+    String strAlignY = xmlTextLine.getString("alignY");
+    switch (strAlignY)
+    {
+      case "top":
+        alignY = TOP;
+        break;
+        
+      case "center":
+        alignY = CENTER;
+        break;
+        
+      case "bottom":
+        alignY = BOTTOM;
+        break;
+        
+      case "baseline":
+      default:
+        alignY = BASELINE;
+        break;
+    }
+    
+    translation = new PVector(xmlTextLine.getFloat("x"), xmlTextLine.getFloat("y"));
+    tcolor = color(xmlTextLine.getFloat("r"), xmlTextLine.getFloat("g"), xmlTextLine.getFloat("b"), xmlTextLine.getFloat("a"));
+  }
+  
+  @Override public void render()
+  {
+    pushMatrix();
+    
+    translate(translation.x, translation.y, translation.z);
+    rotateX(rotation.x);
+    rotateY(rotation.y);
+    rotateZ(rotation.z);
+    scale(scale.x, scale.y, scale.z);
+    
+    textFont(font);
+    textAlign(alignX, alignY);
+    strokeWeight(0);
+    fill(tcolor);
+    text(string, 0.0f, 0.0f, 0.0f);
+    
+    popMatrix();
+  }
+  
+  //@Override public int serialize(FlatBufferBuilder builder)
+  //{
+  //  return 0;
+  //}
+  
+  //@Override public void deserialize(FlatText flatText)
+  //{
+  //}
+}
+
 
 public class Scene implements IScene
 {
@@ -928,7 +1049,7 @@ public class Scene implements IScene
       ((ISpriteInstance)entry.getValue()).render();
     }
     
-    perspectiveCamera.apply();
+    //perspectiveCamera.apply();
     
     for (Map.Entry entry : modelInstances.entrySet())
     {
