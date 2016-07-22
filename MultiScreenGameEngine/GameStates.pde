@@ -105,7 +105,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void onEnter()
   {
-    frameRate(20);
+    frameRate(30);
     sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
     //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
     //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");

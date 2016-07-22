@@ -479,7 +479,7 @@ public class MSServer implements IServer
       byte[] bytes = new byte[message.remaining()];
       message.get(bytes);
       byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
-      println(completeMessage.length);
+      
       synchronized(this)
       {
         for (Map.Entry entry : subServers.entrySet())
