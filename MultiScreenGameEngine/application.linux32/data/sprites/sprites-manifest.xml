@@ -1,0 +1,6 @@
+<Sprites>
+	<Sprite name="ball" file="sprites/ball/ball.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="box" file="sprites/box/box.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="score_empty" file="sprites/score/score_empty.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="score_full" file="sprites/score/score_full.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+</Sprites>

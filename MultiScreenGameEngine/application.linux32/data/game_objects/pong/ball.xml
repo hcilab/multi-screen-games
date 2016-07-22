@@ -1,0 +1,58 @@
+<GameObject>
+	<Render>
+		<Sprite name="ball">
+			<Translation x="0.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="1.0" y="1.0" z="1.0"/>
+			<Tint r="255.0" g="255.0" b="255.0" a="255.0"/>
+		</Sprite>
+		<Sprite name="ball">
+			<Translation x="0.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="0.65" y="0.65" z="0.65"/>
+			<Tint r="255.0" g="255.0" b="255.0" a="255.0"/>
+		</Sprite>
+	</Render>
+
+	<BallController 
+		speed="650.0"
+		clientIDParameterName="clientID"
+		rParameterName="r"
+		gParameterName="g"
+		bParameterName="b"
+	/>
+
+	<RigidBody
+		active="true"
+		allowSleep="false"
+		awake="true"
+		bullet="true"
+		fixedRotation="true"
+		gravityScale="0.0"
+		linearDamping="0.0"
+		angularDamping="0.0"
+		type="dynamic"
+	>
+		<Fixture 
+			density="0.000000001" 
+			friction="0.0" 
+			isSensor="false" 
+			restitution="1.0"
+			categoryBits="4"
+			maskBits="13"
+		>
+			<Shape type="circle" radius="0.5" x="0.0" y="0.0"/>
+		</Fixture>
+
+		<OnCollideEvents>
+			<Event
+				collidedWith="player" 
+				eventType="BALL_PLAYER_COLLISION" 
+				clientIDParameterName="clientID"
+				rParameterName="r"
+				gParameterName="g"
+				bParameterName="b"
+			/>
+		</OnCollideEvents>
+	</RigidBody>
+</GameObject>

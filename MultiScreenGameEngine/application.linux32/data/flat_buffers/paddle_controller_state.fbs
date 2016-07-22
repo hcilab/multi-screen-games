@@ -1,0 +1,16 @@
+// Scheme file for the pong client sending controller state to server.
+
+namespace msge.std;
+
+table FlatPaddleControllerState
+{
+	leftButtonDown: bool;
+	rightButtonDown: bool;
+	upButtonDown: bool;
+	downButtonDown: bool;
+
+	wButtonDown: bool;
+	aButtonDown: bool;
+	sButtonDown: bool;
+	dButtonDown: bool;
+}

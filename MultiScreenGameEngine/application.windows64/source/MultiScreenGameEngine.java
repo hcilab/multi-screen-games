@@ -4094,7 +4094,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void onEnter()
   {
-    frameRate(20);
+    frameRate(30);
     sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
     //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
     //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");
@@ -5072,7 +5072,7 @@ public class MSServer implements IServer
       byte[] bytes = new byte[message.remaining()];
       message.get(bytes);
       byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
-      println(completeMessage.length);
+      
       synchronized(this)
       {
         for (Map.Entry entry : subServers.entrySet())

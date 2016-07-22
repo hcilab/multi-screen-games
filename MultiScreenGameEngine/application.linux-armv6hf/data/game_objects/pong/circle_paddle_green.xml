@@ -1,0 +1,44 @@
+<GameObject>
+	<Render>
+		<Sprite name="ball">
+			<Translation x="0.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="1.0" y="1.0" z="1.0"/>
+			<Tint r="0.0" g="255.0" b="0.0" a="255.0"/>
+		</Sprite>
+	</Render>
+
+	<ServerPaddleController 
+		direction="all"
+		speed="350.0" 
+		clientID="2"
+		r="0.0"
+		g="255.0"
+		b="0.0"
+	/>
+
+	<RigidBody
+		active="true"
+		allowSleep="false"
+		angularDamping="0.0"
+		awake="true"
+		bullet="false"
+		fixedRotation="true"
+		gravityScale="0.0"
+		linearDamping="0.0"
+		type="dynamic"
+	>
+		<Fixture 
+			density="0.15" 
+			friction="0.0" 
+			isSensor="false" 
+			restitution="0.5"
+			categoryBits="8"
+			maskBits="15"
+		>
+			<Shape type="circle" radius="0.5" x="0.0" y="0.0"/>
+		</Fixture>
+		<OnCollideEvents>
+		</OnCollideEvents>
+	</RigidBody>
+</GameObject>
