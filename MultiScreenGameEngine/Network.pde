@@ -45,7 +45,7 @@ public interface IServerCallbackHandler
 // IMPLEMENTATION
 //----------------------------------------------------------------
 
-public final String MAIN_SERVER_IP = "127.0.0.1";
+public final String MAIN_SERVER_IP = "131.202.243.56";
 public final int MAIN_SERVER_PORT = 5204;
 
 public final byte[] BEGIN_SEQUENCE = { 55, -45, 95, -44, 28, -74, -65, -66 };

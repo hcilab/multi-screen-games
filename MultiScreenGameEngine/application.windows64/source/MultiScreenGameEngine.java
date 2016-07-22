@@ -2893,9 +2893,6 @@ public class ServerPaddleControllerComponent extends Component
 public class BallControllerComponent extends Component
 {
   private float speed;
-  private int waitTime;
-  private boolean waiting;
-  private int timePassed;
   private int currentClientID;
   private boolean resetNextFrame;
   
@@ -2908,8 +2905,6 @@ public class BallControllerComponent extends Component
   {
     super(_gameObject);
     
-    waiting = true;
-    timePassed = 0;
     currentClientID = -1;
     resetNextFrame = false;
   }
@@ -2921,7 +2916,6 @@ public class BallControllerComponent extends Component
   @Override public void fromXML(XML xmlComponent)
   {
     speed = xmlComponent.getFloat("speed");
-    waitTime = xmlComponent.getInt("waitTime");
     
     clientIDParameterName = xmlComponent.getString("clientIDParameterName");
     rParameterName = xmlComponent.getString("rParameterName");
@@ -2946,21 +2940,7 @@ public class BallControllerComponent extends Component
     if (component != null)
     {
       RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-      PVector velocity = rigidBodyComponent.getLinearVelocity();
-      
-      if (waiting)
-      {
-        timePassed += deltaTime;
-        if (timePassed > waitTime)
-        {
-          velocity.x = random(-1.0f, 1.0f);
-          velocity.y = random(-1.0f, 1.0f);
-          
-          waiting = false;
-        }
-      }
-      
-      rigidBodyComponent.setLinearVelocity(velocity.normalize().mult(speed));
+      rigidBodyComponent.setLinearVelocity(rigidBodyComponent.getLinearVelocity().normalize().mult(speed));
     }
     
     for (IEvent event : eventManager.getEvents(EventType.BALL_PLAYER_COLLISION))
@@ -3000,8 +2980,6 @@ public class BallControllerComponent extends Component
       RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
       rigidBodyComponent.setPosition(new PVector(0.0f, 0.0f));
       rigidBodyComponent.setLinearVelocity(new PVector(0.0f, 0.0f));
-      waiting = true;
-      timePassed = 0;
       
       currentClientID = -1;
       
@@ -4660,7 +4638,7 @@ public interface IServerCallbackHandler
 // IMPLEMENTATION
 //----------------------------------------------------------------
 
-public final String MAIN_SERVER_IP = "127.0.0.1";
+public final String MAIN_SERVER_IP = "131.202.243.56";
 public final int MAIN_SERVER_PORT = 5204;
 
 public final byte[] BEGIN_SEQUENCE = { 55, -45, 95, -44, 28, -74, -65, -66 };

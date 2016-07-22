@@ -15,8 +15,7 @@
 	</Render>
 
 	<BallController 
-		speed="650.0" 
-		waitTime="2000"
+		speed="650.0"
 		clientIDParameterName="clientID"
 		rParameterName="r"
 		gParameterName="g"
