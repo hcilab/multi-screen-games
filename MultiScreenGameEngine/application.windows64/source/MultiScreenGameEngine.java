@@ -4103,15 +4103,20 @@ public class GameState_ChooseClientServerState extends GameState
 
 public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
-  private int nextClientID = 1;
+  private int nextClientID;
+  private int physicsTime;
   
   public GameState_ServerState()
   {
     super();
+    
+    nextClientID = 1;
+    physicsTime = 0;
   }
   
   @Override public void onEnter()
   {
+    frameRate(20);
     sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
     //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
     //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");
@@ -4122,7 +4127,13 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void update(int deltaTime)
   {
-    physicsWorld.step(((float)deltaTime) / 1000.0f, velocityIterations, positionIterations);
+    physicsTime += deltaTime;
+    while (physicsTime >= 30)
+    {
+      physicsWorld.step(0.030f, velocityIterations, positionIterations);
+      physicsTime -= 30;
+    }
+    
     sharedGameObjectManager.update(deltaTime);
     scene.render();
     mainServer.update();
