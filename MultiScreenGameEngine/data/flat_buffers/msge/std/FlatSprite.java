@@ -21,12 +21,15 @@ public final class FlatSprite extends Table {
   public msge.std.FlatVec3 rotation(msge.std.FlatVec3 obj) { int o = __offset(8); return o != 0 ? obj.__init(o + bb_pos, bb) : null; }
   public msge.std.FlatVec3 scale() { return scale(new msge.std.FlatVec3()); }
   public msge.std.FlatVec3 scale(msge.std.FlatVec3 obj) { int o = __offset(10); return o != 0 ? obj.__init(o + bb_pos, bb) : null; }
+  public msge.std.FlatVec4 tint() { return tint(new msge.std.FlatVec4()); }
+  public msge.std.FlatVec4 tint(msge.std.FlatVec4 obj) { int o = __offset(12); return o != 0 ? obj.__init(o + bb_pos, bb) : null; }
 
-  public static void startFlatSprite(FlatBufferBuilder builder) { builder.startObject(4); }
+  public static void startFlatSprite(FlatBufferBuilder builder) { builder.startObject(5); }
   public static void addSpriteName(FlatBufferBuilder builder, int spriteNameOffset) { builder.addOffset(0, spriteNameOffset, 0); }
   public static void addTranslation(FlatBufferBuilder builder, int translationOffset) { builder.addStruct(1, translationOffset, 0); }
   public static void addRotation(FlatBufferBuilder builder, int rotationOffset) { builder.addStruct(2, rotationOffset, 0); }
   public static void addScale(FlatBufferBuilder builder, int scaleOffset) { builder.addStruct(3, scaleOffset, 0); }
+  public static void addTint(FlatBufferBuilder builder, int tintOffset) { builder.addStruct(4, tintOffset, 0); }
   public static int endFlatSprite(FlatBufferBuilder builder) {
     int o = builder.endObject();
     return o;

@@ -11,6 +11,7 @@ table FlatSprite
     translation : FlatVec3;
     rotation : FlatVec3;
     scale : FlatVec3;
+    tint : FlatVec4;
 }
 
 table FlatModel

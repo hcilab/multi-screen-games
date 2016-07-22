@@ -99,9 +99,8 @@ public void setup()
   scene = new Scene();
   gameStateController = new GameStateController();
   
-  //spriteManager.loadAllSprites();
-  modelManager.loadAllModels();
-  //gameStateController.pushState(new GameState_TestState());
+  spriteManager.loadAllSprites();
+  //modelManager.loadAllModels();
   gameStateController.pushState(new GameState_ChooseClientServerState());
   
   lastFrameTime = millis();
@@ -1155,17 +1154,22 @@ public IAction deserializeAction(JSONObject jsonAction)
 
 public enum ComponentType
 {
-  RENDER,
-  RIGID_BODY,
-  PERSPECTIVE_CAMERA,
-  ORTHOGRAPHIC_CAMERA,
-  TRANSLATE_OVER_TIME,
-  ROTATE_OVER_TIME,
-  SCALE_OVER_TIME,
-  BOX_PADDLE_CONTROLLER,
-  CIRCLE_PADDLE_CONTROLLER,
-  BALL_CONTROLLER,
-  GOAL_LISTENER,
+  // GENERAL
+  RENDER,               // server/client
+  RIGID_BODY,           // server
+  PERSPECTIVE_CAMERA,   // client
+  ORTHOGRAPHIC_CAMERA,  // client
+  
+  // BOX EXAMPLE
+  TRANSLATE_OVER_TIME,  // server/client(testing only)
+  ROTATE_OVER_TIME,     // server/client(testing only)
+  SCALE_OVER_TIME,      // server/client(testing only)
+  
+  // PONG
+  CLIENT_PADDLE_CONTROLLER,    // client
+  SERVER_PADDLE_CONTROLLER,    // server
+  BALL_CONTROLLER,      // server
+  GOAL_LISTENER,        // server
 }
 
 public interface IComponent
@@ -1198,7 +1202,7 @@ public String componentTypeEnumToString(ComponentType componentType)
       
     case RIGID_BODY:
       return "rigidBody";
-      
+       
     case PERSPECTIVE_CAMERA:
       return "perspectiveCamera";
       
@@ -1214,11 +1218,11 @@ public String componentTypeEnumToString(ComponentType componentType)
     case SCALE_OVER_TIME:
       return "scaleOverTime";
       
-    case BOX_PADDLE_CONTROLLER:
-      return "boxPaddleController";
+    case CLIENT_PADDLE_CONTROLLER:
+      return "clientPaddleController";
       
-    case CIRCLE_PADDLE_CONTROLLER:
-      return "circlePaddleController";
+    case SERVER_PADDLE_CONTROLLER:
+      return "serverPaddleController";
       
     case BALL_CONTROLLER:
       return "ballController";
@@ -1257,12 +1261,12 @@ public ComponentType componentTypeStringToEnum(String componentType)
       
     case "scaleOverTime":
       return ComponentType.SCALE_OVER_TIME;
+    
+    case "clientPaddleController":
+      return ComponentType.CLIENT_PADDLE_CONTROLLER;
       
-    case "boxPaddleController":
-      return ComponentType.BOX_PADDLE_CONTROLLER;
-      
-    case "circlePaddleController":
-      return ComponentType.CIRCLE_PADDLE_CONTROLLER;
+    case "serverPaddleController":
+      return ComponentType.SERVER_PADDLE_CONTROLLER;
       
     case "ballController":
       return ComponentType.BALL_CONTROLLER;
@@ -1753,6 +1757,15 @@ public class RigidBodyComponent extends Component
               onCollideEvent.eventParameters = new HashMap<String, String>(); 
               onCollideEvent.eventParameters.put("ballParameterName", xmlOnCollideEvent.getString("ballParameterName"));
             }
+            else if (stringEventType.equals("BALL_PLAYER_COLLISION"))
+            {
+              onCollideEvent.eventType = EventType.BALL_PLAYER_COLLISION;
+              onCollideEvent.eventParameters = new HashMap<String, String>();
+              onCollideEvent.eventParameters.put("clientIDParameterName", xmlOnCollideEvent.getString("clientIDParameterName"));
+              onCollideEvent.eventParameters.put("rParameterName", xmlOnCollideEvent.getString("rParameterName"));
+              onCollideEvent.eventParameters.put("gParameterName", xmlOnCollideEvent.getString("gParameterName"));
+              onCollideEvent.eventParameters.put("bParameterName", xmlOnCollideEvent.getString("bParameterName"));
+            }
             //else if (stringEventType.equals("GAME_OVER"))
             //{
             //  onCollideEvent.eventType = EventType.GAME_OVER;
@@ -1798,6 +1811,25 @@ public class RigidBodyComponent extends Component
         {
           Event event = new Event(EventType.GOAL_SCORED);  
           event.addGameObjectParameter(onCollideEvent.eventParameters.get("ballParameterName"), collider);  
+          eventManager.queueEvent(event);
+        }
+        else if (onCollideEvent.eventType == EventType.BALL_PLAYER_COLLISION)
+        {
+          Event event = new Event(EventType.BALL_PLAYER_COLLISION);
+          
+          IComponent component = collider.getComponent(ComponentType.SERVER_PADDLE_CONTROLLER);
+          if (component != null)
+          {
+            ServerPaddleControllerComponent serverPaddleController = (ServerPaddleControllerComponent)component;
+            
+            event.addIntParameter(onCollideEvent.eventParameters.get("clientIDParameterName"), serverPaddleController.getClientID());
+            
+            PVector paddleColor = serverPaddleController.getPaddleColor();
+            event.addFloatParameter(onCollideEvent.eventParameters.get("rParameterName"), paddleColor.x);
+            event.addFloatParameter(onCollideEvent.eventParameters.get("gParameterName"), paddleColor.y);
+            event.addFloatParameter(onCollideEvent.eventParameters.get("bParameterName"), paddleColor.z);
+          }
+          
           eventManager.queueEvent(event);
         }
         //else if (onCollideEvent.eventType == EventType.GAME_OVER)  
@@ -2572,45 +2604,57 @@ public class ScaleOverTimeComponent extends NetworkComponent
 }
 
 
-public class BoxPaddleControllerComponent extends Component
+public class ClientPaddleControllerComponent extends Component
 {
-  private boolean horizontal;
-  private float speed;
+  public int clientID;
   
-  private boolean upButtonDown;
-  private boolean downButtonDown;
-  private boolean leftButtonDown;
-  private boolean rightButtonDown;
+  public boolean leftButtonDown;
+  public boolean rightButtonDown;
+  public boolean upButtonDown;
+  public boolean downButtonDown;
   
-  public BoxPaddleControllerComponent(IGameObject _gameObject)
+  public boolean wButtonDown;
+  public boolean aButtonDown;
+  public boolean sButtonDown;
+  public boolean dButtonDown;
+  
+  public ClientPaddleControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
-    upButtonDown = false;
-    downButtonDown = false;
+    clientID = -1;
+    
     leftButtonDown = false;
     rightButtonDown = false;
-  }
-  
-  @Override public void destroy()
-  {
+    upButtonDown = false;
+    downButtonDown = false;
+    
+    wButtonDown = false;
+    aButtonDown = false;
+    sButtonDown = false;
+    dButtonDown = false;
   }
   
   @Override public void fromXML(XML xmlComponent)
   {
-    horizontal = xmlComponent.getString("direction").equals("horizontal") ? true : false;
-    speed = xmlComponent.getFloat("speed");
   }
   
   @Override public ComponentType getComponentType()
   {
-    return ComponentType.BOX_PADDLE_CONTROLLER;
+    return ComponentType.CLIENT_PADDLE_CONTROLLER;
   }
   
   @Override public void update(int deltaTime)
   {
-    if (horizontal)
+    if (clientID == -1)
     {
+      for (IEvent event : eventManager.getEvents(EventType.CLIENT_ID_SET))
+      {
+        clientID = event.getRequiredIntParameter("clientID");
+      }
+    }
+    else
+    {    
       if (eventManager.getEvents(EventType.LEFT_BUTTON_PRESSED).size() > 0)
       {
         leftButtonDown = true;
@@ -2619,6 +2663,36 @@ public class BoxPaddleControllerComponent extends Component
       if (eventManager.getEvents(EventType.RIGHT_BUTTON_PRESSED).size() > 0)
       {
         rightButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.UP_BUTTON_PRESSED).size() > 0)
+      {
+        upButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.DOWN_BUTTON_PRESSED).size() > 0)
+      {
+        downButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.W_BUTTON_PRESSED).size() > 0)
+      {
+        wButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.A_BUTTON_PRESSED).size() > 0)
+      {
+        aButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.S_BUTTON_PRESSED).size() > 0)
+      {
+        sButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.D_BUTTON_PRESSED).size() > 0)
+      {
+        dButtonDown = true;
       }
       
       if (eventManager.getEvents(EventType.LEFT_BUTTON_RELEASED).size() > 0)
@@ -2631,37 +2705,6 @@ public class BoxPaddleControllerComponent extends Component
         rightButtonDown = false;
       }
       
-      float horizontalVelocity = 0.0f;
-      
-      if (leftButtonDown)
-      {
-        horizontalVelocity -= speed;
-      }
-      
-      if (rightButtonDown)
-      {
-        horizontalVelocity += speed;
-      }
-      
-      IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
-      if (component != null)
-      {
-        RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-        rigidBodyComponent.setLinearVelocity(new PVector(horizontalVelocity, 0.0f));
-      }
-    }
-    else
-    {
-      if (eventManager.getEvents(EventType.UP_BUTTON_PRESSED).size() > 0)
-      {
-        upButtonDown = true;
-      }
-      
-      if (eventManager.getEvents(EventType.DOWN_BUTTON_PRESSED).size() > 0)
-      {
-        downButtonDown = true;
-      }
-      
       if (eventManager.getEvents(EventType.UP_BUTTON_RELEASED).size() > 0)
       {
         upButtonDown = false;
@@ -2672,134 +2715,177 @@ public class BoxPaddleControllerComponent extends Component
         downButtonDown = false;
       }
       
-      float verticalVelocity = 0.0f;
-      
-      if (upButtonDown)
+      if (eventManager.getEvents(EventType.W_BUTTON_RELEASED).size() > 0)
       {
-        verticalVelocity += speed;
+        wButtonDown = false;
       }
       
-      if (downButtonDown)
+      if (eventManager.getEvents(EventType.A_BUTTON_RELEASED).size() > 0)
       {
-        verticalVelocity -= speed;
+        aButtonDown = false;
       }
       
-      IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
-      if (component != null)
+      if (eventManager.getEvents(EventType.S_BUTTON_RELEASED).size() > 0)
       {
-        RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-        rigidBodyComponent.setLinearVelocity(new PVector(0.0f, verticalVelocity));
+        sButtonDown = false;
+      }
+      
+      if (eventManager.getEvents(EventType.D_BUTTON_RELEASED).size() > 0)
+      {
+        dButtonDown = false;
+      }
+      
+      if (mainClient != null && mainClient.isConnected())
+      {
+        FlatBufferBuilder builder = new FlatBufferBuilder(0);
+        
+        FlatPaddleControllerState.startFlatPaddleControllerState(builder);
+        FlatPaddleControllerState.addLeftButtonDown(builder, leftButtonDown);
+        FlatPaddleControllerState.addRightButtonDown(builder, rightButtonDown);
+        FlatPaddleControllerState.addUpButtonDown(builder, upButtonDown);
+        FlatPaddleControllerState.addDownButtonDown(builder, downButtonDown);
+        FlatPaddleControllerState.addWButtonDown(builder, wButtonDown);
+        FlatPaddleControllerState.addAButtonDown(builder, aButtonDown);
+        FlatPaddleControllerState.addSButtonDown(builder, sButtonDown);
+        FlatPaddleControllerState.addDButtonDown(builder, dButtonDown);
+        int flatPaddleControllerStateOffset = FlatPaddleControllerState.endFlatPaddleControllerState(builder);
+        
+        FlatMessageHeader.startFlatMessageHeader(builder);
+        FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
+        FlatMessageHeader.addClientID(builder, clientID);
+        int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
+        
+        FlatMessageBodyTable.startFlatMessageBodyTable(builder);
+        FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatPaddleControllerState);
+        FlatMessageBodyTable.addBody(builder, flatPaddleControllerStateOffset);
+        int flatMessageBodyTable = FlatMessageBodyTable.endFlatMessageBodyTable(builder);
+        
+        FlatMessage.startFlatMessage(builder);
+        FlatMessage.addHeader(builder, flatMessageHeader);
+        FlatMessage.addBodyTable(builder, flatMessageBodyTable);
+        FlatMessage.finishFlatMessageBuffer(builder, FlatMessage.endFlatMessage(builder));
+        
+        mainClient.write(builder.dataBuffer());
       }
     }
   }
 }
 
 
-public class CirclePaddleControllerComponent extends Component
+public class ServerPaddleControllerComponent extends Component
 {
+  private int direction;
   private float speed;
+  private int clientID;
+  private PVector paddleColor;
   
-  private boolean wButtonDown;
-  private boolean aButtonDown;
-  private boolean sButtonDown;
-  private boolean dButtonDown;
-  
-  public CirclePaddleControllerComponent(IGameObject _gameObject)
+  public ServerPaddleControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
-    
-    wButtonDown = false;
-    aButtonDown = false;
-    sButtonDown = false;
-    dButtonDown = false;
-  }
-  
-  @Override public void destroy()
-  {
   }
   
   @Override public void fromXML(XML xmlComponent)
   {
+    String strDirection = xmlComponent.getString("direction");
+    switch (strDirection)
+    {
+      case "all":
+        direction = 0;
+        break;
+      
+      case "vertical":
+        direction = 1;
+        break;
+        
+      case "horizontal":
+        direction = 2;
+        break;
+        
+      default:
+        println("Unrecognized direction: " + strDirection);
+        assert(false);
+    }
+    
     speed = xmlComponent.getFloat("speed");
+    clientID = xmlComponent.getInt("clientID");
+    paddleColor = new PVector(xmlComponent.getFloat("r"), xmlComponent.getFloat("g"), xmlComponent.getFloat("b"));
   }
   
   @Override public ComponentType getComponentType()
   {
-    return ComponentType.CIRCLE_PADDLE_CONTROLLER;
+    return ComponentType.SERVER_PADDLE_CONTROLLER;
   }
   
   @Override public void update(int deltaTime)
   {
-    if (eventManager.getEvents(EventType.W_BUTTON_PRESSED).size() > 0)
+    for (IEvent event : eventManager.getEvents(EventType.CLIENT_PADDLE_CONTROLS))
     {
-      wButtonDown = true;
+      if (event.getRequiredIntParameter("clientID") == clientID)
+      {
+        PVector velocity = new PVector(0.0f, 0.0f);
+      
+        switch (direction)
+        {
+          case 0:
+            if (event.getRequiredBooleanParameter("wButtonDown"))
+            {
+              velocity.y += 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("aButtonDown"))
+            {
+              velocity.x -= 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("sButtonDown"))
+            {
+              velocity.y -= 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("dButtonDown"))
+            {
+              velocity.x += 1.0f;
+            }
+            break;
+            
+          case 1:
+            if (event.getRequiredBooleanParameter("upButtonDown"))
+            {
+              velocity.y += 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("downButtonDown"))
+            {
+              velocity.y -= 1.0f;
+            }
+            break;
+            
+          case 2:
+            if (event.getRequiredBooleanParameter("leftButtonDown"))
+            {
+              velocity.x -= 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("rightButtonDown"))
+            {
+              velocity.x += 1.0f;
+            }
+            break;
+        }
+        
+        IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
+        if (component != null)
+        {
+          RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
+          rigidBodyComponent.setLinearVelocity(velocity.normalize().mult(speed));
+        }
+      }
     }
-    
-    if (eventManager.getEvents(EventType.A_BUTTON_PRESSED).size() > 0)
-    {
-      aButtonDown = true;
-    }
-    
-    if (eventManager.getEvents(EventType.S_BUTTON_PRESSED).size() > 0)
-    {
-      sButtonDown = true;
-    }
-    
-    if (eventManager.getEvents(EventType.D_BUTTON_PRESSED).size() > 0)
-    {
-      dButtonDown = true;
-    }
-    
-    if (eventManager.getEvents(EventType.W_BUTTON_RELEASED).size() > 0)
-    {
-      wButtonDown = false;
-    }
-    
-    if (eventManager.getEvents(EventType.A_BUTTON_RELEASED).size() > 0)
-    {
-      aButtonDown = false;
-    }
-    
-    if (eventManager.getEvents(EventType.S_BUTTON_RELEASED).size() > 0)
-    {
-      sButtonDown = false;
-    }
-    
-    if (eventManager.getEvents(EventType.D_BUTTON_RELEASED).size() > 0)
-    {
-      dButtonDown = false;
-    }
-    
-    PVector velocity = new PVector(0.0f, 0.0f);
-    
-    if (wButtonDown)
-    {
-      velocity.y += speed;
-    }
-    
-    if (aButtonDown)
-    {
-      velocity.x -= speed;
-    }
-    
-    if (sButtonDown)
-    {
-      velocity.y -= speed;
-    }
-    
-    if (dButtonDown)
-    {
-      velocity.x += speed;
-    }
-    
-    velocity = velocity.normalize().mult(speed);
-    
-    IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
-    if (component != null)
-    {
-      RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-      rigidBodyComponent.setLinearVelocity(velocity);
-    }
+  }
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
+  
+  public PVector getPaddleColor()
+  {
+    return paddleColor;
   }
 }
 
@@ -2810,7 +2896,13 @@ public class BallControllerComponent extends Component
   private int waitTime;
   private boolean waiting;
   private int timePassed;
-  private int currentPlayerID;
+  private int currentClientID;
+  private boolean resetNextFrame;
+  
+  private String clientIDParameterName;
+  private String rParameterName;
+  private String gParameterName;
+  private String bParameterName;
   
   public BallControllerComponent(IGameObject _gameObject)
   {
@@ -2818,7 +2910,8 @@ public class BallControllerComponent extends Component
     
     waiting = true;
     timePassed = 0;
-    currentPlayerID = -1;
+    currentClientID = -1;
+    resetNextFrame = false;
   }
   
   @Override public void destroy()
@@ -2829,6 +2922,11 @@ public class BallControllerComponent extends Component
   {
     speed = xmlComponent.getFloat("speed");
     waitTime = xmlComponent.getInt("waitTime");
+    
+    clientIDParameterName = xmlComponent.getString("clientIDParameterName");
+    rParameterName = xmlComponent.getString("rParameterName");
+    gParameterName = xmlComponent.getString("gParameterName");
+    bParameterName = xmlComponent.getString("bParameterName");
   }
   
   @Override public ComponentType getComponentType()
@@ -2838,6 +2936,12 @@ public class BallControllerComponent extends Component
   
   @Override public void update(int deltaTime)
   {
+    if (resetNextFrame)
+    {
+      reset();
+      resetNextFrame = false;
+    }
+    
     IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
     if (component != null)
     {
@@ -2858,14 +2962,37 @@ public class BallControllerComponent extends Component
       
       rigidBodyComponent.setLinearVelocity(velocity.normalize().mult(speed));
     }
+    
+    for (IEvent event : eventManager.getEvents(EventType.BALL_PLAYER_COLLISION))
+    {
+      currentClientID = event.getRequiredIntParameter(clientIDParameterName);
+      
+      component = gameObject.getComponent(ComponentType.RENDER);
+      if (component != null)
+      {
+        RenderComponent renderComponent = (RenderComponent)component;
+        ISpriteInstance spriteInstance = scene.getSpriteInstance(renderComponent.getSpriteHandles().get(0));
+        PVector tint = new PVector(
+          event.getRequiredFloatParameter(rParameterName), 
+          event.getRequiredFloatParameter(gParameterName), 
+          event.getRequiredFloatParameter(bParameterName)
+        );
+        spriteInstance.setTint(tint);
+      }
+    }
+    
+    if (eventManager.getEvents(EventType.GOAL_SCORED).size() > 0)
+    {
+      resetNextFrame = true;
+    }
   }
   
-  public int getCurrentPlayerID()
+  public int getCurrentClientID()
   {
-    return currentPlayerID;
+    return currentClientID;
   }
   
-  public void reset()
+  private void reset()
   {
     IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
     if (component != null)
@@ -2875,6 +3002,16 @@ public class BallControllerComponent extends Component
       rigidBodyComponent.setLinearVelocity(new PVector(0.0f, 0.0f));
       waiting = true;
       timePassed = 0;
+      
+      currentClientID = -1;
+      
+      component = gameObject.getComponent(ComponentType.RENDER);
+      if (component != null)
+      {
+        RenderComponent renderComponent = (RenderComponent)component;
+        ISpriteInstance spriteInstance = scene.getSpriteInstance(renderComponent.getSpriteHandles().get(0));
+        spriteInstance.setTint(new PVector(255.0f, 255.0f, 255.0f));
+      }
     }
   }
 }
@@ -2883,7 +3020,7 @@ public class BallControllerComponent extends Component
 public class GoalListenerComponent extends Component
 {
   private String ballParameterName;
-  private int playerID;
+  private int clientID;
   private String scoreFullSpriteName;
   private PVector colorVector;
   private int currentScore;
@@ -2902,7 +3039,7 @@ public class GoalListenerComponent extends Component
   @Override public void fromXML(XML xmlComponent)
   {
     ballParameterName = xmlComponent.getString("ballParameterName");    
-    playerID = xmlComponent.getInt("playerID");
+    clientID = xmlComponent.getInt("clientID");
     scoreFullSpriteName = xmlComponent.getString("scoreFullSpriteName");
     colorVector = new PVector(xmlComponent.getFloat("r"), xmlComponent.getFloat("g"), xmlComponent.getFloat("b"));
   }
@@ -2922,7 +3059,7 @@ public class GoalListenerComponent extends Component
       {
         BallControllerComponent ballControllerComponent = (BallControllerComponent)component;
         
-        if (currentScore < 9 && ballControllerComponent.getCurrentPlayerID() == playerID)
+        if (currentScore < 9 && ballControllerComponent.getCurrentClientID() == clientID)
         {
           component = gameObject.getComponent(ComponentType.RENDER);
           if (component != null)
@@ -2941,8 +3078,6 @@ public class GoalListenerComponent extends Component
             currentScore++;
           }
         }
-        
-        ballControllerComponent.reset();
       }
     }
   }
@@ -2984,12 +3119,12 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
       component = new ScaleOverTimeComponent(gameObject);
       break;
       
-    case "BoxPaddleController":
-      component = new BoxPaddleControllerComponent(gameObject);
+    case "ClientPaddleController":
+      component = new ClientPaddleControllerComponent(gameObject);
       break;
       
-    case "CirclePaddleController":
-      component = new CirclePaddleControllerComponent(gameObject);
+    case "ServerPaddleController":
+      component = new ServerPaddleControllerComponent(gameObject);
       break;
       
     case "BallController":
@@ -3081,7 +3216,11 @@ public enum EventType
   S_BUTTON_RELEASED,
   D_BUTTON_RELEASED,
   
+  CLIENT_ID_SET,
+  
+  CLIENT_PADDLE_CONTROLS,
   GOAL_SCORED,
+  BALL_PLAYER_COLLISION,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -3095,12 +3234,14 @@ public interface IEvent
   public void        addStringParameter(String name, String value);
   public void        addFloatParameter(String name, float value);
   public void        addIntParameter(String name, int value);
+  public void        addBooleanParameter(String name, boolean value);
   public void        addGameObjectParameter(String name, IGameObject value);
   
   // Use these to get a parameter, but it does not have to have been set by the sender. A default value is required.
   public String      getOptionalStringParameter(String name, String defaultValue);
   public float       getOptionalFloatParameter(String name, float defaultValue);
   public int         getOptionalIntParameter(String name, int defaultValue);
+  public boolean     getOptionalBooleanParameter(String name, boolean defaultValue);
   public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue);
   
   // Use these to get a parameter that must have been set by the sender. If the sender did not set it, this is an error
@@ -3108,6 +3249,7 @@ public interface IEvent
   public String      getRequiredStringParameter(String name);
   public float       getRequiredFloatParameter(String name);
   public int         getRequiredIntParameter(String name);
+  public boolean     getRequiredBooleanParameter(String name);
   public IGameObject getRequiredGameObjectParameter(String name);
 }
 
@@ -3137,6 +3279,7 @@ public class Event implements IEvent
   private HashMap<String, String> stringParameters;
   private HashMap<String, Float> floatParameters;
   private HashMap<String, Integer> intParameters;
+  private HashMap<String, Boolean> booleanParameters;
   private HashMap<String, IGameObject> gameObjectParameters;
   
   public Event(EventType _eventType)
@@ -3145,6 +3288,7 @@ public class Event implements IEvent
     stringParameters = new HashMap<String, String>();
     floatParameters = new HashMap<String, Float>();
     intParameters = new HashMap<String, Integer>();
+    booleanParameters = new HashMap<String, Boolean>();
     gameObjectParameters = new HashMap<String, IGameObject>();
   }
   
@@ -3166,6 +3310,11 @@ public class Event implements IEvent
   @Override public void addIntParameter(String name, int value)
   {
     intParameters.put(name, value);
+  }
+  
+  @Override public void addBooleanParameter(String name, boolean value)
+  {
+    booleanParameters.put(name, value);
   }
   
   @Override public void addGameObjectParameter(String name, IGameObject value)
@@ -3203,6 +3352,16 @@ public class Event implements IEvent
     return defaultValue;
   }
   
+  @Override public boolean getOptionalBooleanParameter(String name, boolean defaultValue)
+  {
+    if (booleanParameters.containsKey(name))
+    {
+      return booleanParameters.get(name);
+    }
+    
+    return defaultValue;
+  }
+  
   @Override public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue)
   {
     if (gameObjectParameters.containsKey(name))
@@ -3229,6 +3388,12 @@ public class Event implements IEvent
   {
     assert(intParameters.containsKey(name));
     return intParameters.get(name);
+  }
+  
+  @Override public boolean getRequiredBooleanParameter(String name)
+  {
+    assert(booleanParameters.containsKey(name));
+    return booleanParameters.get(name);
   }
   
   @Override public IGameObject getRequiredGameObjectParameter(String name)
@@ -3271,7 +3436,11 @@ public class EventManager implements IEventManager
     addEventTypeToMaps(EventType.S_BUTTON_RELEASED);
     addEventTypeToMaps(EventType.D_BUTTON_RELEASED);
     
+    addEventTypeToMaps(EventType.CLIENT_ID_SET);
+    
+    addEventTypeToMaps(EventType.CLIENT_PADDLE_CONTROLS);
     addEventTypeToMaps(EventType.GOAL_SCORED);
+    addEventTypeToMaps(EventType.BALL_PLAYER_COLLISION);
   }
   
   private void addEventTypeToMaps(EventType eventType)
@@ -3358,6 +3527,9 @@ interface IGameObject
   // Note: GameObjects are limited to having only one component of each type.
   public IComponent getComponent(ComponentType componentType);
   
+  public boolean getSend();
+  public void setSend(boolean _send);
+  
   // Updates and renders the Game Object over the given time in milliseconds.
   public void update(int deltaTime);
   
@@ -3406,6 +3578,8 @@ public class GameObject implements IGameObject
   
   private ArrayList<IComponent> components;
   
+  private boolean send;
+  
   public GameObject(IGameObjectManager _owner, PVector _translation, PVector _rotation, PVector _scale)
   {
     UID = gameObjectNextUID;
@@ -3418,6 +3592,8 @@ public class GameObject implements IGameObject
     scale = _scale;
     
     components = new ArrayList<IComponent>();
+    
+    send = false;
   }
   
   public GameObject(IGameObjectManager _owner, FlatGameObject flatGameObject)
@@ -3462,14 +3638,22 @@ public class GameObject implements IGameObject
   {
     int tagOffset = builder.createString(tag);
     
-    int[] flatComponents = new int[components.size()];
+    ArrayList<Integer> flatComponentsArrayList = new ArrayList<Integer>();
+    
     for (int i = 0; i < components.size(); i++)
     {
       if (components.get(i) instanceof INetworkComponent)
       {
-        flatComponents[i] = ((INetworkComponent)components.get(i)).serialize(builder);
+        flatComponentsArrayList.add(((INetworkComponent)components.get(i)).serialize(builder));
       }
     }
+    
+    int[] flatComponents = new int[flatComponentsArrayList.size()];
+    for (int i = 0; i < flatComponentsArrayList.size(); i++)
+    {
+      flatComponents[i] = flatComponentsArrayList.get(i);
+    }
+    
     int flatComponentsVector = FlatGameObject.createComponentTablesVector(builder, flatComponents);
     
     FlatGameObject.startFlatGameObject(builder);
@@ -3584,6 +3768,16 @@ public class GameObject implements IGameObject
     return null;
   }
   
+  @Override public boolean getSend()
+  {
+    return send;
+  }
+  
+  @Override public void setSend(boolean _send)
+  {
+    send = _send;
+  }
+  
   @Override public void update(int deltaTime)
   {
     for (IComponent component : components)
@@ -3662,11 +3856,19 @@ public class GameObjectManager implements IGameObjectManager
       }
       
       IGameObject gameObject = new GameObject(this, translation, rotation, scale);
+      
       String tag = xmlGameObject.getString("tag");
       if (tag != null)
       {
         gameObject.setTag(tag);
       }
+      
+      String send = xmlGameObject.getString("send");
+      if (send != null && send.equals("true"))
+      {
+        gameObject.setSend(true);
+      }
+      
       gameObject.fromXML(xmlGameObject.getString("file"));
       gameObjects.put(gameObject.getUID(), gameObject);
     }
@@ -3674,15 +3876,22 @@ public class GameObjectManager implements IGameObjectManager
   
   @Override public int serialize(FlatBufferBuilder builder)
   {
-    int i = 0;
-    int[] flatGameObjects = new int[gameObjects.size()];
+    ArrayList<Integer> flatGameObjectsList = new ArrayList<Integer>();
     
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
       
-      flatGameObjects[i] = gameObject.serialize(builder);
-      i++;
+      if (gameObject.getSend())
+      {
+        flatGameObjectsList.add(gameObject.serialize(builder));
+      }
+    }
+    
+    int[] flatGameObjects = new int[flatGameObjectsList.size()];
+    for (int i = 0; i < flatGameObjectsList.size(); i++)
+    {
+      flatGameObjects[i] = flatGameObjectsList.get(i);
     }
     
     int flatGameObjectsVector = FlatGameWorld.createGameObjectsVector(builder, flatGameObjects);
@@ -3861,32 +4070,6 @@ public interface IGameStateController
 // IMPLEMENTATION
 //-------------------------------------------------------------------------------
 
-public class GameState_TestState extends GameState
-{
-  public GameState_TestState()
-  {
-    super();
-  }
-  
-  @Override public void onEnter()
-  {
-    localGameObjectManager.fromXML("levels/pong/pong_level.xml");
-  }
-  
-  @Override public void update(int deltaTime)
-  {
-    physicsWorld.step(((float)deltaTime) / 1000.0f, velocityIterations, positionIterations);
-    localGameObjectManager.update(deltaTime);
-    scene.render();
-    text("hello", 0, 0);
-  }
-  
-  @Override public void onExit()
-  {
-    localGameObjectManager.clearGameObjects();
-  }
-}
-
 public class GameState_ChooseClientServerState extends GameState
 {
   public GameState_ChooseClientServerState()
@@ -3920,6 +4103,8 @@ public class GameState_ChooseClientServerState extends GameState
 
 public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
+  private int nextClientID = 1;
+  
   public GameState_ServerState()
   {
     super();
@@ -3927,7 +4112,9 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void onEnter()
   {
-    sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
+    sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
+    //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
+    //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");
     
     mainServer = new MSServer(this);
     mainServer.begin();
@@ -3935,20 +4122,73 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void update(int deltaTime)
   {
+    physicsWorld.step(((float)deltaTime) / 1000.0f, velocityIterations, positionIterations);
     sharedGameObjectManager.update(deltaTime);
     scene.render();
-    //mainServer.update();
+    mainServer.update();
     sendWorldToAllClients();
   }
   
   @Override public void onExit()
   {
+    sharedGameObjectManager.clearGameObjects();
     mainServer.end();
     mainServer = null;
   }
   
+  @Override public ByteBuffer getNewClientInitializationMessage()
+  {
+    FlatBufferBuilder builder = new FlatBufferBuilder(0);
+    
+    FlatInitializationMessage.startFlatInitializationMessage(builder);
+    FlatInitializationMessage.addClientID(builder, nextClientID);
+    int flatInitializationMessageOffset = FlatInitializationMessage.endFlatInitializationMessage(builder);
+    nextClientID++;
+    
+    FlatMessageHeader.startFlatMessageHeader(builder);
+    FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
+    FlatMessageHeader.addClientID(builder, 0);
+    int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
+    
+    FlatMessageBodyTable.startFlatMessageBodyTable(builder);
+    FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatInitializationMessage);
+    FlatMessageBodyTable.addBody(builder, flatInitializationMessageOffset);
+    int flatMessageBodyTable = FlatMessageBodyTable.endFlatMessageBodyTable(builder);
+    
+    FlatMessage.startFlatMessage(builder);
+    FlatMessage.addHeader(builder, flatMessageHeader);
+    FlatMessage.addBodyTable(builder, flatMessageBodyTable);
+    FlatMessage.finishFlatMessageBuffer(builder, FlatMessage.endFlatMessage(builder));
+    
+    return builder.dataBuffer();
+  }
+  
   @Override public void handleClientMessage(ByteBuffer clientMessage)
   {
+    FlatMessage flatServerMessage = FlatMessage.getRootAsFlatMessage(clientMessage);
+    
+    FlatMessageHeader flatMessageHeader = flatServerMessage.header();
+    int clientID = flatMessageHeader.clientID();
+    
+    FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
+    byte bodyType = bodyTable.bodyType();
+    
+    if (bodyType == FlatMessageBodyUnion.FlatPaddleControllerState)
+    {
+      FlatPaddleControllerState flatPaddleControllerState = (FlatPaddleControllerState)bodyTable.body(new FlatPaddleControllerState());
+      
+      IEvent event = new Event(EventType.CLIENT_PADDLE_CONTROLS);
+      event.addIntParameter("clientID", clientID);
+      event.addBooleanParameter("leftButtonDown", flatPaddleControllerState.leftButtonDown());
+      event.addBooleanParameter("rightButtonDown", flatPaddleControllerState.rightButtonDown());
+      event.addBooleanParameter("upButtonDown", flatPaddleControllerState.upButtonDown());
+      event.addBooleanParameter("downButtonDown", flatPaddleControllerState.downButtonDown());
+      event.addBooleanParameter("wButtonDown", flatPaddleControllerState.wButtonDown());
+      event.addBooleanParameter("aButtonDown", flatPaddleControllerState.aButtonDown());
+      event.addBooleanParameter("sButtonDown", flatPaddleControllerState.sButtonDown());
+      event.addBooleanParameter("dButtonDown", flatPaddleControllerState.dButtonDown());
+      eventManager.queueEvent(event);
+    }
   }
   
   private void sendWorldToAllClients()
@@ -3958,6 +4198,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
     int flatGameWorld = sharedGameObjectManager.serialize(builder);
     
     FlatMessageHeader.startFlatMessageHeader(builder);
+    FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
     FlatMessageHeader.addClientID(builder, 0);
     int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
     
@@ -3988,8 +4229,6 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
   
   @Override public void onEnter()
   {
-    localGameObjectManager.fromXML("levels/box_example/client_level_1.xml");
-    
     mainClient = new MSClient(this);
     
     if (!mainClient.connect())
@@ -4004,17 +4243,20 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
     if (mainClient != null && mainClient.isConnected())
     {
       mainClient.update();
-      //sendClientActionsToServer();
     }
+    
+    localGameObjectManager.update(deltaTime);
     
     synchronized(sharedGameObjectManager)
     {
       scene.render();
-    } //<>//
+    }
   }
   
   @Override public void onExit()
   {
+    localGameObjectManager.clearGameObjects();
+    
     if (mainClient != null)
     {
       mainClient.disconnect();
@@ -4025,37 +4267,59 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
   @Override public void handleServerMessage(ByteBuffer serverMessage)
   {
     FlatMessage flatServerMessage = FlatMessage.getRootAsFlatMessage(serverMessage);
-    int messageTargetID = flatServerMessage.header().clientID();
     
-    if (messageTargetID == 0 || messageTargetID == clientID)
+    FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
+    byte bodyType = bodyTable.bodyType();
+    
+    if (bodyType == FlatMessageBodyUnion.FlatGameWorld)
     {
-      if (flatServerMessage.bodyTable().bodyType() == FlatMessageBodyUnion.FlatGameWorld)
+      FlatGameWorld flatGameWorld = (FlatGameWorld)bodyTable.body(new FlatGameWorld());
+      
+      synchronized(sharedGameObjectManager)
       {
-        FlatGameWorld flatGameWorld = (FlatGameWorld)flatServerMessage.bodyTable().body(new FlatGameWorld());
-        
-        synchronized(sharedGameObjectManager)
-        {
-          sharedGameObjectManager.deserialize(flatGameWorld);
-          //println(sharedGameObjectManager);
-        }
+        sharedGameObjectManager.deserialize(flatGameWorld);
       }
-      //else if (flatServerMessage.bodyTable().bodyType() == FlatMessageBodyUnion.FlatServerInitMessage)
-      //{
-      //  FlatServerInitMessage flatServerInitMessage = (FlatServerInitMessage)flatServerMessage.body().body(new FlatServerInitMessage());
-        
-      //  outgoingClient = new MSClient(flatServerInitMessage.ip(), flatServerInitMessage.port(), this);
-      //  if (outgoingClient.connect())
-      //  {
-      //    println("Outgoing Client connected.");
-      //  }
-      //  else
-      //  {
-      //    println("Outgoing Client failed to connect.");
-      //  }
-      //}
+    }
+    else if (bodyType == FlatMessageBodyUnion.FlatInitializationMessage)
+    {
+      FlatInitializationMessage flatInitializationMessage = (FlatInitializationMessage)bodyTable.body(new FlatInitializationMessage());
+      
+      clientID = flatInitializationMessage.clientID();
+      
+      switch (clientID)
+      {
+        case 1:
+          localGameObjectManager.fromXML("levels/pong/client_level_blue.xml");
+          break;
+          
+        case 2:
+          localGameObjectManager.fromXML("levels/pong/client_level_green.xml");
+          break;
+          
+        case 3:
+          localGameObjectManager.fromXML("levels/pong/client_level_black.xml");
+          break;
+          
+        case 4:
+          localGameObjectManager.fromXML("levels/pong/client_level_red.xml");
+          break;
+          
+        default:
+          println("Invalid clientID received: " + clientID);
+          assert(false);
+      }
+      
+      IEvent event = new Event(EventType.CLIENT_ID_SET);
+      event.addIntParameter("clientID", clientID);
+      eventManager.queueEvent(event);
     }
   }
-} //<>//
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
+}
 
 public class GameStateController implements IGameStateController
 {
@@ -4377,6 +4641,7 @@ public interface IServer
 
 public interface IServerCallbackHandler
 {
+  public ByteBuffer getNewClientInitializationMessage();
   public void handleClientMessage(ByteBuffer clientMessage);
 }
 
@@ -4521,7 +4786,7 @@ public class NetworkCircularByteBuffer extends CircularByteBuffer
   
   synchronized public byte[] parseMessageLoop(Client pClient)
   {
-    if (pClient.available() > 0)
+    if (pClient != null && pClient.available() > 0)
     {
       int length = pClient.readBytes(tempBuffer);
       
@@ -4818,7 +5083,7 @@ public class MSServer implements IServer
       byte[] bytes = new byte[message.remaining()];
       message.get(bytes);
       byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
-      
+      println(completeMessage.length);
       synchronized(this)
       {
         for (Map.Entry entry : subServers.entrySet())
@@ -4932,15 +5197,32 @@ public class MSServer implements IServer
     {
       assert(pClient == null);
       pClient = p_pClient;
+      
+      ByteBuffer initMessage = mainServer.getHandler().getNewClientInitializationMessage();
+      if (initMessage != null)
+      {
+        byte[] bytes = new byte[initMessage.remaining()];
+        initMessage.get(bytes);
+        byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
+        
+        write(completeMessage);
+      }
     }
     
     public void update()
     {
-      byte[] message = circularBuffer.parseMessageLoop(pClient);
-      if (message != null)
+      byte[] message = null;
+      
+      do
       {
-        mainServer.getHandler().handleClientMessage(ByteBuffer.wrap(message));
+        message = circularBuffer.parseMessageLoop(pClient);
+        
+        if (message != null)
+        {
+          mainServer.getHandler().handleClientMessage(ByteBuffer.wrap(message));
+        }
       }
+      while (message != null);
     }
     
     public void write(byte[] message)
@@ -5540,6 +5822,7 @@ public class SpriteInstance implements ISpriteInstance
     FlatSprite.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
     FlatSprite.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
     FlatSprite.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
+    FlatSprite.addTint(builder, FlatVec4.createFlatVec4(builder, tintColor.x, tintColor.y, tintColor.z, alpha));
     
     return FlatSprite.endFlatSprite(builder);
   }
@@ -5556,6 +5839,10 @@ public class SpriteInstance implements ISpriteInstance
     
     FlatVec3 flatScale = flatSprite.scale();
     scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
+    
+    FlatVec4 flatTint = flatSprite.tint();
+    tintColor = new PVector(flatTint.x(), flatTint.y(), flatTint.z());
+    alpha = flatTint.w();
   }
 }
 
@@ -6013,12 +6300,12 @@ public class Scene implements IScene
       ((ISpriteInstance)entry.getValue()).render();
     }
     
-    perspectiveCamera.apply();
+    //perspectiveCamera.apply();
     
-    for (Map.Entry entry : modelInstances.entrySet())
-    {
-      ((IModelInstance)entry.getValue()).render();
-    }
+    //for (Map.Entry entry : modelInstances.entrySet())
+    //{
+    //  ((IModelInstance)entry.getValue()).render();
+    //}
   }
 }
   public void settings() {  size(500, 500, P3D); }

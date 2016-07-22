@@ -8,7 +8,14 @@
 		</Sprite>
 	</Render>
 
-	<CirclePaddleController speed="350.0" playerID="2"/>
+	<ServerPaddleController 
+		direction="all"
+		speed="350.0" 
+		clientID="2"
+		r="0.0"
+		g="255.0"
+		b="0.0"
+	/>
 
 	<RigidBody
 		active="true"

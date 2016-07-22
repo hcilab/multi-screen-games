@@ -14,7 +14,14 @@
 		</Sprite>
 	</Render>
 
-	<BallController speed="650.0" waitTime="2000"/>
+	<BallController 
+		speed="650.0" 
+		waitTime="2000"
+		clientIDParameterName="clientID"
+		rParameterName="r"
+		gParameterName="g"
+		bParameterName="b"
+	/>
 
 	<RigidBody
 		active="true"
@@ -37,7 +44,16 @@
 		>
 			<Shape type="circle" radius="0.5" x="0.0" y="0.0"/>
 		</Fixture>
+
 		<OnCollideEvents>
+			<Event
+				collidedWith="player" 
+				eventType="BALL_PLAYER_COLLISION" 
+				clientIDParameterName="clientID"
+				rParameterName="r"
+				gParameterName="g"
+				bParameterName="b"
+			/>
 		</OnCollideEvents>
 	</RigidBody>
 </GameObject>

@@ -10,17 +10,22 @@
 
 public enum ComponentType
 {
-  RENDER,
-  RIGID_BODY,
-  PERSPECTIVE_CAMERA,
-  ORTHOGRAPHIC_CAMERA,
-  TRANSLATE_OVER_TIME,
-  ROTATE_OVER_TIME,
-  SCALE_OVER_TIME,
-  BOX_PADDLE_CONTROLLER,
-  CIRCLE_PADDLE_CONTROLLER,
-  BALL_CONTROLLER,
-  GOAL_LISTENER,
+  // GENERAL
+  RENDER,               // server/client
+  RIGID_BODY,           // server
+  PERSPECTIVE_CAMERA,   // client
+  ORTHOGRAPHIC_CAMERA,  // client
+  
+  // BOX EXAMPLE
+  TRANSLATE_OVER_TIME,  // server/client(testing only)
+  ROTATE_OVER_TIME,     // server/client(testing only)
+  SCALE_OVER_TIME,      // server/client(testing only)
+  
+  // PONG
+  CLIENT_PADDLE_CONTROLLER,    // client
+  SERVER_PADDLE_CONTROLLER,    // server
+  BALL_CONTROLLER,      // server
+  GOAL_LISTENER,        // server
 }
 
 public interface IComponent
@@ -53,7 +58,7 @@ public String componentTypeEnumToString(ComponentType componentType)
       
     case RIGID_BODY:
       return "rigidBody";
-      
+       
     case PERSPECTIVE_CAMERA:
       return "perspectiveCamera";
       
@@ -69,11 +74,11 @@ public String componentTypeEnumToString(ComponentType componentType)
     case SCALE_OVER_TIME:
       return "scaleOverTime";
       
-    case BOX_PADDLE_CONTROLLER:
-      return "boxPaddleController";
+    case CLIENT_PADDLE_CONTROLLER:
+      return "clientPaddleController";
       
-    case CIRCLE_PADDLE_CONTROLLER:
-      return "circlePaddleController";
+    case SERVER_PADDLE_CONTROLLER:
+      return "serverPaddleController";
       
     case BALL_CONTROLLER:
       return "ballController";
@@ -112,12 +117,12 @@ public ComponentType componentTypeStringToEnum(String componentType)
       
     case "scaleOverTime":
       return ComponentType.SCALE_OVER_TIME;
+    
+    case "clientPaddleController":
+      return ComponentType.CLIENT_PADDLE_CONTROLLER;
       
-    case "boxPaddleController":
-      return ComponentType.BOX_PADDLE_CONTROLLER;
-      
-    case "circlePaddleController":
-      return ComponentType.CIRCLE_PADDLE_CONTROLLER;
+    case "serverPaddleController":
+      return ComponentType.SERVER_PADDLE_CONTROLLER;
       
     case "ballController":
       return ComponentType.BALL_CONTROLLER;
@@ -608,6 +613,15 @@ public class RigidBodyComponent extends Component
               onCollideEvent.eventParameters = new HashMap<String, String>(); 
               onCollideEvent.eventParameters.put("ballParameterName", xmlOnCollideEvent.getString("ballParameterName"));
             }
+            else if (stringEventType.equals("BALL_PLAYER_COLLISION"))
+            {
+              onCollideEvent.eventType = EventType.BALL_PLAYER_COLLISION;
+              onCollideEvent.eventParameters = new HashMap<String, String>();
+              onCollideEvent.eventParameters.put("clientIDParameterName", xmlOnCollideEvent.getString("clientIDParameterName"));
+              onCollideEvent.eventParameters.put("rParameterName", xmlOnCollideEvent.getString("rParameterName"));
+              onCollideEvent.eventParameters.put("gParameterName", xmlOnCollideEvent.getString("gParameterName"));
+              onCollideEvent.eventParameters.put("bParameterName", xmlOnCollideEvent.getString("bParameterName"));
+            }
             //else if (stringEventType.equals("GAME_OVER"))
             //{
             //  onCollideEvent.eventType = EventType.GAME_OVER;
@@ -653,6 +667,25 @@ public class RigidBodyComponent extends Component
         {
           Event event = new Event(EventType.GOAL_SCORED);  
           event.addGameObjectParameter(onCollideEvent.eventParameters.get("ballParameterName"), collider);  
+          eventManager.queueEvent(event);
+        }
+        else if (onCollideEvent.eventType == EventType.BALL_PLAYER_COLLISION)
+        {
+          Event event = new Event(EventType.BALL_PLAYER_COLLISION);
+          
+          IComponent component = collider.getComponent(ComponentType.SERVER_PADDLE_CONTROLLER);
+          if (component != null)
+          {
+            ServerPaddleControllerComponent serverPaddleController = (ServerPaddleControllerComponent)component;
+            
+            event.addIntParameter(onCollideEvent.eventParameters.get("clientIDParameterName"), serverPaddleController.getClientID());
+            
+            PVector paddleColor = serverPaddleController.getPaddleColor();
+            event.addFloatParameter(onCollideEvent.eventParameters.get("rParameterName"), paddleColor.x);
+            event.addFloatParameter(onCollideEvent.eventParameters.get("gParameterName"), paddleColor.y);
+            event.addFloatParameter(onCollideEvent.eventParameters.get("bParameterName"), paddleColor.z);
+          }
+          
           eventManager.queueEvent(event);
         }
         //else if (onCollideEvent.eventType == EventType.GAME_OVER)  
@@ -1427,45 +1460,57 @@ public class ScaleOverTimeComponent extends NetworkComponent
 }
 
 
-public class BoxPaddleControllerComponent extends Component
+public class ClientPaddleControllerComponent extends Component
 {
-  private boolean horizontal;
-  private float speed;
+  public int clientID;
   
-  private boolean upButtonDown;
-  private boolean downButtonDown;
-  private boolean leftButtonDown;
-  private boolean rightButtonDown;
+  public boolean leftButtonDown;
+  public boolean rightButtonDown;
+  public boolean upButtonDown;
+  public boolean downButtonDown;
   
-  public BoxPaddleControllerComponent(IGameObject _gameObject)
+  public boolean wButtonDown;
+  public boolean aButtonDown;
+  public boolean sButtonDown;
+  public boolean dButtonDown;
+  
+  public ClientPaddleControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
-    upButtonDown = false;
-    downButtonDown = false;
+    clientID = -1;
+    
     leftButtonDown = false;
     rightButtonDown = false;
-  }
-  
-  @Override public void destroy()
-  {
+    upButtonDown = false;
+    downButtonDown = false;
+    
+    wButtonDown = false;
+    aButtonDown = false;
+    sButtonDown = false;
+    dButtonDown = false;
   }
   
   @Override public void fromXML(XML xmlComponent)
   {
-    horizontal = xmlComponent.getString("direction").equals("horizontal") ? true : false;
-    speed = xmlComponent.getFloat("speed");
   }
   
   @Override public ComponentType getComponentType()
   {
-    return ComponentType.BOX_PADDLE_CONTROLLER;
+    return ComponentType.CLIENT_PADDLE_CONTROLLER;
   }
   
   @Override public void update(int deltaTime)
   {
-    if (horizontal)
+    if (clientID == -1)
     {
+      for (IEvent event : eventManager.getEvents(EventType.CLIENT_ID_SET))
+      {
+        clientID = event.getRequiredIntParameter("clientID");
+      }
+    }
+    else
+    {    
       if (eventManager.getEvents(EventType.LEFT_BUTTON_PRESSED).size() > 0)
       {
         leftButtonDown = true;
@@ -1474,6 +1519,36 @@ public class BoxPaddleControllerComponent extends Component
       if (eventManager.getEvents(EventType.RIGHT_BUTTON_PRESSED).size() > 0)
       {
         rightButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.UP_BUTTON_PRESSED).size() > 0)
+      {
+        upButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.DOWN_BUTTON_PRESSED).size() > 0)
+      {
+        downButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.W_BUTTON_PRESSED).size() > 0)
+      {
+        wButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.A_BUTTON_PRESSED).size() > 0)
+      {
+        aButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.S_BUTTON_PRESSED).size() > 0)
+      {
+        sButtonDown = true;
+      }
+      
+      if (eventManager.getEvents(EventType.D_BUTTON_PRESSED).size() > 0)
+      {
+        dButtonDown = true;
       }
       
       if (eventManager.getEvents(EventType.LEFT_BUTTON_RELEASED).size() > 0)
@@ -1486,37 +1561,6 @@ public class BoxPaddleControllerComponent extends Component
         rightButtonDown = false;
       }
       
-      float horizontalVelocity = 0.0f;
-      
-      if (leftButtonDown)
-      {
-        horizontalVelocity -= speed;
-      }
-      
-      if (rightButtonDown)
-      {
-        horizontalVelocity += speed;
-      }
-      
-      IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
-      if (component != null)
-      {
-        RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-        rigidBodyComponent.setLinearVelocity(new PVector(horizontalVelocity, 0.0f));
-      }
-    }
-    else
-    {
-      if (eventManager.getEvents(EventType.UP_BUTTON_PRESSED).size() > 0)
-      {
-        upButtonDown = true;
-      }
-      
-      if (eventManager.getEvents(EventType.DOWN_BUTTON_PRESSED).size() > 0)
-      {
-        downButtonDown = true;
-      }
-      
       if (eventManager.getEvents(EventType.UP_BUTTON_RELEASED).size() > 0)
       {
         upButtonDown = false;
@@ -1527,134 +1571,177 @@ public class BoxPaddleControllerComponent extends Component
         downButtonDown = false;
       }
       
-      float verticalVelocity = 0.0f;
-      
-      if (upButtonDown)
+      if (eventManager.getEvents(EventType.W_BUTTON_RELEASED).size() > 0)
       {
-        verticalVelocity += speed;
+        wButtonDown = false;
       }
       
-      if (downButtonDown)
+      if (eventManager.getEvents(EventType.A_BUTTON_RELEASED).size() > 0)
       {
-        verticalVelocity -= speed;
+        aButtonDown = false;
       }
       
-      IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
-      if (component != null)
+      if (eventManager.getEvents(EventType.S_BUTTON_RELEASED).size() > 0)
       {
-        RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-        rigidBodyComponent.setLinearVelocity(new PVector(0.0f, verticalVelocity));
+        sButtonDown = false;
+      }
+      
+      if (eventManager.getEvents(EventType.D_BUTTON_RELEASED).size() > 0)
+      {
+        dButtonDown = false;
+      }
+      
+      if (mainClient != null && mainClient.isConnected())
+      {
+        FlatBufferBuilder builder = new FlatBufferBuilder(0);
+        
+        FlatPaddleControllerState.startFlatPaddleControllerState(builder);
+        FlatPaddleControllerState.addLeftButtonDown(builder, leftButtonDown);
+        FlatPaddleControllerState.addRightButtonDown(builder, rightButtonDown);
+        FlatPaddleControllerState.addUpButtonDown(builder, upButtonDown);
+        FlatPaddleControllerState.addDownButtonDown(builder, downButtonDown);
+        FlatPaddleControllerState.addWButtonDown(builder, wButtonDown);
+        FlatPaddleControllerState.addAButtonDown(builder, aButtonDown);
+        FlatPaddleControllerState.addSButtonDown(builder, sButtonDown);
+        FlatPaddleControllerState.addDButtonDown(builder, dButtonDown);
+        int flatPaddleControllerStateOffset = FlatPaddleControllerState.endFlatPaddleControllerState(builder);
+        
+        FlatMessageHeader.startFlatMessageHeader(builder);
+        FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
+        FlatMessageHeader.addClientID(builder, clientID);
+        int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
+        
+        FlatMessageBodyTable.startFlatMessageBodyTable(builder);
+        FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatPaddleControllerState);
+        FlatMessageBodyTable.addBody(builder, flatPaddleControllerStateOffset);
+        int flatMessageBodyTable = FlatMessageBodyTable.endFlatMessageBodyTable(builder);
+        
+        FlatMessage.startFlatMessage(builder);
+        FlatMessage.addHeader(builder, flatMessageHeader);
+        FlatMessage.addBodyTable(builder, flatMessageBodyTable);
+        FlatMessage.finishFlatMessageBuffer(builder, FlatMessage.endFlatMessage(builder));
+        
+        mainClient.write(builder.dataBuffer());
       }
     }
   }
 }
 
 
-public class CirclePaddleControllerComponent extends Component
+public class ServerPaddleControllerComponent extends Component
 {
+  private int direction;
   private float speed;
+  private int clientID;
+  private PVector paddleColor;
   
-  private boolean wButtonDown;
-  private boolean aButtonDown;
-  private boolean sButtonDown;
-  private boolean dButtonDown;
-  
-  public CirclePaddleControllerComponent(IGameObject _gameObject)
+  public ServerPaddleControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
-    
-    wButtonDown = false;
-    aButtonDown = false;
-    sButtonDown = false;
-    dButtonDown = false;
-  }
-  
-  @Override public void destroy()
-  {
   }
   
   @Override public void fromXML(XML xmlComponent)
   {
+    String strDirection = xmlComponent.getString("direction");
+    switch (strDirection)
+    {
+      case "all":
+        direction = 0;
+        break;
+      
+      case "vertical":
+        direction = 1;
+        break;
+        
+      case "horizontal":
+        direction = 2;
+        break;
+        
+      default:
+        println("Unrecognized direction: " + strDirection);
+        assert(false);
+    }
+    
     speed = xmlComponent.getFloat("speed");
+    clientID = xmlComponent.getInt("clientID");
+    paddleColor = new PVector(xmlComponent.getFloat("r"), xmlComponent.getFloat("g"), xmlComponent.getFloat("b"));
   }
   
   @Override public ComponentType getComponentType()
   {
-    return ComponentType.CIRCLE_PADDLE_CONTROLLER;
+    return ComponentType.SERVER_PADDLE_CONTROLLER;
   }
   
   @Override public void update(int deltaTime)
   {
-    if (eventManager.getEvents(EventType.W_BUTTON_PRESSED).size() > 0)
+    for (IEvent event : eventManager.getEvents(EventType.CLIENT_PADDLE_CONTROLS))
     {
-      wButtonDown = true;
+      if (event.getRequiredIntParameter("clientID") == clientID)
+      {
+        PVector velocity = new PVector(0.0f, 0.0f);
+      
+        switch (direction)
+        {
+          case 0:
+            if (event.getRequiredBooleanParameter("wButtonDown"))
+            {
+              velocity.y += 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("aButtonDown"))
+            {
+              velocity.x -= 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("sButtonDown"))
+            {
+              velocity.y -= 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("dButtonDown"))
+            {
+              velocity.x += 1.0f;
+            }
+            break;
+            
+          case 1:
+            if (event.getRequiredBooleanParameter("upButtonDown"))
+            {
+              velocity.y += 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("downButtonDown"))
+            {
+              velocity.y -= 1.0f;
+            }
+            break;
+            
+          case 2:
+            if (event.getRequiredBooleanParameter("leftButtonDown"))
+            {
+              velocity.x -= 1.0f;
+            }
+            if (event.getRequiredBooleanParameter("rightButtonDown"))
+            {
+              velocity.x += 1.0f;
+            }
+            break;
+        }
+        
+        IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
+        if (component != null)
+        {
+          RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
+          rigidBodyComponent.setLinearVelocity(velocity.normalize().mult(speed));
+        }
+      }
     }
-    
-    if (eventManager.getEvents(EventType.A_BUTTON_PRESSED).size() > 0)
-    {
-      aButtonDown = true;
-    }
-    
-    if (eventManager.getEvents(EventType.S_BUTTON_PRESSED).size() > 0)
-    {
-      sButtonDown = true;
-    }
-    
-    if (eventManager.getEvents(EventType.D_BUTTON_PRESSED).size() > 0)
-    {
-      dButtonDown = true;
-    }
-    
-    if (eventManager.getEvents(EventType.W_BUTTON_RELEASED).size() > 0)
-    {
-      wButtonDown = false;
-    }
-    
-    if (eventManager.getEvents(EventType.A_BUTTON_RELEASED).size() > 0)
-    {
-      aButtonDown = false;
-    }
-    
-    if (eventManager.getEvents(EventType.S_BUTTON_RELEASED).size() > 0)
-    {
-      sButtonDown = false;
-    }
-    
-    if (eventManager.getEvents(EventType.D_BUTTON_RELEASED).size() > 0)
-    {
-      dButtonDown = false;
-    }
-    
-    PVector velocity = new PVector(0.0f, 0.0f);
-    
-    if (wButtonDown)
-    {
-      velocity.y += speed;
-    }
-    
-    if (aButtonDown)
-    {
-      velocity.x -= speed;
-    }
-    
-    if (sButtonDown)
-    {
-      velocity.y -= speed;
-    }
-    
-    if (dButtonDown)
-    {
-      velocity.x += speed;
-    }
-    
-    velocity = velocity.normalize().mult(speed);
-    
-    IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
-    if (component != null)
-    {
-      RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
-      rigidBodyComponent.setLinearVelocity(velocity);
-    }
+  }
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
+  
+  public PVector getPaddleColor()
+  {
+    return paddleColor;
   }
 }
 
@@ -1665,7 +1752,13 @@ public class BallControllerComponent extends Component
   private int waitTime;
   private boolean waiting;
   private int timePassed;
-  private int currentPlayerID;
+  private int currentClientID;
+  private boolean resetNextFrame;
+  
+  private String clientIDParameterName;
+  private String rParameterName;
+  private String gParameterName;
+  private String bParameterName;
   
   public BallControllerComponent(IGameObject _gameObject)
   {
@@ -1673,7 +1766,8 @@ public class BallControllerComponent extends Component
     
     waiting = true;
     timePassed = 0;
-    currentPlayerID = -1;
+    currentClientID = -1;
+    resetNextFrame = false;
   }
   
   @Override public void destroy()
@@ -1684,6 +1778,11 @@ public class BallControllerComponent extends Component
   {
     speed = xmlComponent.getFloat("speed");
     waitTime = xmlComponent.getInt("waitTime");
+    
+    clientIDParameterName = xmlComponent.getString("clientIDParameterName");
+    rParameterName = xmlComponent.getString("rParameterName");
+    gParameterName = xmlComponent.getString("gParameterName");
+    bParameterName = xmlComponent.getString("bParameterName");
   }
   
   @Override public ComponentType getComponentType()
@@ -1693,6 +1792,12 @@ public class BallControllerComponent extends Component
   
   @Override public void update(int deltaTime)
   {
+    if (resetNextFrame)
+    {
+      reset();
+      resetNextFrame = false;
+    }
+    
     IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
     if (component != null)
     {
@@ -1713,14 +1818,37 @@ public class BallControllerComponent extends Component
       
       rigidBodyComponent.setLinearVelocity(velocity.normalize().mult(speed));
     }
+    
+    for (IEvent event : eventManager.getEvents(EventType.BALL_PLAYER_COLLISION))
+    {
+      currentClientID = event.getRequiredIntParameter(clientIDParameterName);
+      
+      component = gameObject.getComponent(ComponentType.RENDER);
+      if (component != null)
+      {
+        RenderComponent renderComponent = (RenderComponent)component;
+        ISpriteInstance spriteInstance = scene.getSpriteInstance(renderComponent.getSpriteHandles().get(0));
+        PVector tint = new PVector(
+          event.getRequiredFloatParameter(rParameterName), 
+          event.getRequiredFloatParameter(gParameterName), 
+          event.getRequiredFloatParameter(bParameterName)
+        );
+        spriteInstance.setTint(tint);
+      }
+    }
+    
+    if (eventManager.getEvents(EventType.GOAL_SCORED).size() > 0)
+    {
+      resetNextFrame = true;
+    }
   }
   
-  public int getCurrentPlayerID()
+  public int getCurrentClientID()
   {
-    return currentPlayerID;
+    return currentClientID;
   }
   
-  public void reset()
+  private void reset()
   {
     IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
     if (component != null)
@@ -1730,6 +1858,16 @@ public class BallControllerComponent extends Component
       rigidBodyComponent.setLinearVelocity(new PVector(0.0f, 0.0f));
       waiting = true;
       timePassed = 0;
+      
+      currentClientID = -1;
+      
+      component = gameObject.getComponent(ComponentType.RENDER);
+      if (component != null)
+      {
+        RenderComponent renderComponent = (RenderComponent)component;
+        ISpriteInstance spriteInstance = scene.getSpriteInstance(renderComponent.getSpriteHandles().get(0));
+        spriteInstance.setTint(new PVector(255.0f, 255.0f, 255.0f));
+      }
     }
   }
 }
@@ -1738,7 +1876,7 @@ public class BallControllerComponent extends Component
 public class GoalListenerComponent extends Component
 {
   private String ballParameterName;
-  private int playerID;
+  private int clientID;
   private String scoreFullSpriteName;
   private PVector colorVector;
   private int currentScore;
@@ -1757,7 +1895,7 @@ public class GoalListenerComponent extends Component
   @Override public void fromXML(XML xmlComponent)
   {
     ballParameterName = xmlComponent.getString("ballParameterName");    
-    playerID = xmlComponent.getInt("playerID");
+    clientID = xmlComponent.getInt("clientID");
     scoreFullSpriteName = xmlComponent.getString("scoreFullSpriteName");
     colorVector = new PVector(xmlComponent.getFloat("r"), xmlComponent.getFloat("g"), xmlComponent.getFloat("b"));
   }
@@ -1777,7 +1915,7 @@ public class GoalListenerComponent extends Component
       {
         BallControllerComponent ballControllerComponent = (BallControllerComponent)component;
         
-        if (currentScore < 9 && ballControllerComponent.getCurrentPlayerID() == playerID)
+        if (currentScore < 9 && ballControllerComponent.getCurrentClientID() == clientID)
         {
           component = gameObject.getComponent(ComponentType.RENDER);
           if (component != null)
@@ -1796,8 +1934,6 @@ public class GoalListenerComponent extends Component
             currentScore++;
           }
         }
-        
-        ballControllerComponent.reset();
       }
     }
   }
@@ -1839,12 +1975,12 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
       component = new ScaleOverTimeComponent(gameObject);
       break;
       
-    case "BoxPaddleController":
-      component = new BoxPaddleControllerComponent(gameObject);
+    case "ClientPaddleController":
+      component = new ClientPaddleControllerComponent(gameObject);
       break;
       
-    case "CirclePaddleController":
-      component = new CirclePaddleControllerComponent(gameObject);
+    case "ServerPaddleController":
+      component = new ServerPaddleControllerComponent(gameObject);
       break;
       
     case "BallController":

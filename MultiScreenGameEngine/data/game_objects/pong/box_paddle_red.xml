@@ -8,7 +8,14 @@
 		</Sprite>
 	</Render>
 
-	<BoxPaddleController direction="horizontal" speed="350.0" playerID="4"/>
+	<ServerPaddleController
+		direction="horizontal" 
+		speed="350.0"
+		clientID="4"
+		r="255.0"
+		g="0.0"
+		b="0.0"
+	/>
 
 	<RigidBody
 		active="true"
@@ -21,7 +28,7 @@
 		linearDamping="0.0"
 		type="dynamic"
 	>
-		<Fixture 
+		<Fixture
 			density="0.15" 
 			friction="0.0" 
 			isSensor="false" 

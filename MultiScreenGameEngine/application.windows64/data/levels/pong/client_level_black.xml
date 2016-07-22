@@ -1,0 +1,4 @@
+<Level>
+	<GameObject file="game_objects/pong/camera_black.xml"/>
+	<GameObject file="game_objects/pong/client_paddle_controller.xml"/>
+</Level>

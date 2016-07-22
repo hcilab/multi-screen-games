@@ -32,7 +32,11 @@ public enum EventType
   S_BUTTON_RELEASED,
   D_BUTTON_RELEASED,
   
+  CLIENT_ID_SET,
+  
+  CLIENT_PADDLE_CONTROLS,
   GOAL_SCORED,
+  BALL_PLAYER_COLLISION,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -46,12 +50,14 @@ public interface IEvent
   public void        addStringParameter(String name, String value);
   public void        addFloatParameter(String name, float value);
   public void        addIntParameter(String name, int value);
+  public void        addBooleanParameter(String name, boolean value);
   public void        addGameObjectParameter(String name, IGameObject value);
   
   // Use these to get a parameter, but it does not have to have been set by the sender. A default value is required.
   public String      getOptionalStringParameter(String name, String defaultValue);
   public float       getOptionalFloatParameter(String name, float defaultValue);
   public int         getOptionalIntParameter(String name, int defaultValue);
+  public boolean     getOptionalBooleanParameter(String name, boolean defaultValue);
   public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue);
   
   // Use these to get a parameter that must have been set by the sender. If the sender did not set it, this is an error
@@ -59,6 +65,7 @@ public interface IEvent
   public String      getRequiredStringParameter(String name);
   public float       getRequiredFloatParameter(String name);
   public int         getRequiredIntParameter(String name);
+  public boolean     getRequiredBooleanParameter(String name);
   public IGameObject getRequiredGameObjectParameter(String name);
 }
 
@@ -88,6 +95,7 @@ public class Event implements IEvent
   private HashMap<String, String> stringParameters;
   private HashMap<String, Float> floatParameters;
   private HashMap<String, Integer> intParameters;
+  private HashMap<String, Boolean> booleanParameters;
   private HashMap<String, IGameObject> gameObjectParameters;
   
   public Event(EventType _eventType)
@@ -96,6 +104,7 @@ public class Event implements IEvent
     stringParameters = new HashMap<String, String>();
     floatParameters = new HashMap<String, Float>();
     intParameters = new HashMap<String, Integer>();
+    booleanParameters = new HashMap<String, Boolean>();
     gameObjectParameters = new HashMap<String, IGameObject>();
   }
   
@@ -117,6 +126,11 @@ public class Event implements IEvent
   @Override public void addIntParameter(String name, int value)
   {
     intParameters.put(name, value);
+  }
+  
+  @Override public void addBooleanParameter(String name, boolean value)
+  {
+    booleanParameters.put(name, value);
   }
   
   @Override public void addGameObjectParameter(String name, IGameObject value)
@@ -154,6 +168,16 @@ public class Event implements IEvent
     return defaultValue;
   }
   
+  @Override public boolean getOptionalBooleanParameter(String name, boolean defaultValue)
+  {
+    if (booleanParameters.containsKey(name))
+    {
+      return booleanParameters.get(name);
+    }
+    
+    return defaultValue;
+  }
+  
   @Override public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue)
   {
     if (gameObjectParameters.containsKey(name))
@@ -180,6 +204,12 @@ public class Event implements IEvent
   {
     assert(intParameters.containsKey(name));
     return intParameters.get(name);
+  }
+  
+  @Override public boolean getRequiredBooleanParameter(String name)
+  {
+    assert(booleanParameters.containsKey(name));
+    return booleanParameters.get(name);
   }
   
   @Override public IGameObject getRequiredGameObjectParameter(String name)
@@ -222,7 +252,11 @@ public class EventManager implements IEventManager
     addEventTypeToMaps(EventType.S_BUTTON_RELEASED);
     addEventTypeToMaps(EventType.D_BUTTON_RELEASED);
     
+    addEventTypeToMaps(EventType.CLIENT_ID_SET);
+    
+    addEventTypeToMaps(EventType.CLIENT_PADDLE_CONTROLS);
     addEventTypeToMaps(EventType.GOAL_SCORED);
+    addEventTypeToMaps(EventType.BALL_PLAYER_COLLISION);
   }
   
   private void addEventTypeToMaps(EventType eventType)

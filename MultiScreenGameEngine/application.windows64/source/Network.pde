@@ -37,6 +37,7 @@ public interface IServer
 
 public interface IServerCallbackHandler
 {
+  public ByteBuffer getNewClientInitializationMessage();
   public void handleClientMessage(ByteBuffer clientMessage);
 }
 
@@ -181,7 +182,7 @@ public class NetworkCircularByteBuffer extends CircularByteBuffer
   
   synchronized public byte[] parseMessageLoop(Client pClient)
   {
-    if (pClient.available() > 0)
+    if (pClient != null && pClient.available() > 0)
     {
       int length = pClient.readBytes(tempBuffer);
       
@@ -478,7 +479,7 @@ public class MSServer implements IServer
       byte[] bytes = new byte[message.remaining()];
       message.get(bytes);
       byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
-      
+      println(completeMessage.length);
       synchronized(this)
       {
         for (Map.Entry entry : subServers.entrySet())
@@ -592,15 +593,32 @@ public class MSServer implements IServer
     {
       assert(pClient == null);
       pClient = p_pClient;
+      
+      ByteBuffer initMessage = mainServer.getHandler().getNewClientInitializationMessage();
+      if (initMessage != null)
+      {
+        byte[] bytes = new byte[initMessage.remaining()];
+        initMessage.get(bytes);
+        byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
+        
+        write(completeMessage);
+      }
     }
     
     public void update()
     {
-      byte[] message = circularBuffer.parseMessageLoop(pClient);
-      if (message != null)
+      byte[] message = null;
+      
+      do
       {
-        mainServer.getHandler().handleClientMessage(ByteBuffer.wrap(message));
+        message = circularBuffer.parseMessageLoop(pClient);
+        
+        if (message != null)
+        {
+          mainServer.getHandler().handleClientMessage(ByteBuffer.wrap(message));
+        }
       }
+      while (message != null);
     }
     
     public void write(byte[] message)

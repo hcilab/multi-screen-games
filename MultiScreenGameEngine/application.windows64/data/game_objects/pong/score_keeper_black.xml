@@ -1,7 +1,7 @@
 <GameObject>
 	<GoalListener 
 		ballParameterName="ball" 
-		playerID="3" 
+		clientID="3" 
 		scoreFullSpriteName="score_full"
 		r="0.0" g="0.0" b="0.0"/>
 

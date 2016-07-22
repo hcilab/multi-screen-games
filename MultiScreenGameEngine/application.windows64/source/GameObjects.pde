@@ -47,6 +47,9 @@ interface IGameObject
   // Note: GameObjects are limited to having only one component of each type.
   public IComponent getComponent(ComponentType componentType);
   
+  public boolean getSend();
+  public void setSend(boolean _send);
+  
   // Updates and renders the Game Object over the given time in milliseconds.
   public void update(int deltaTime);
   
@@ -95,6 +98,8 @@ public class GameObject implements IGameObject
   
   private ArrayList<IComponent> components;
   
+  private boolean send;
+  
   public GameObject(IGameObjectManager _owner, PVector _translation, PVector _rotation, PVector _scale)
   {
     UID = gameObjectNextUID;
@@ -107,6 +112,8 @@ public class GameObject implements IGameObject
     scale = _scale;
     
     components = new ArrayList<IComponent>();
+    
+    send = false;
   }
   
   public GameObject(IGameObjectManager _owner, FlatGameObject flatGameObject)
@@ -151,14 +158,22 @@ public class GameObject implements IGameObject
   {
     int tagOffset = builder.createString(tag);
     
-    int[] flatComponents = new int[components.size()];
+    ArrayList<Integer> flatComponentsArrayList = new ArrayList<Integer>();
+    
     for (int i = 0; i < components.size(); i++)
     {
       if (components.get(i) instanceof INetworkComponent)
       {
-        flatComponents[i] = ((INetworkComponent)components.get(i)).serialize(builder);
+        flatComponentsArrayList.add(((INetworkComponent)components.get(i)).serialize(builder));
       }
     }
+    
+    int[] flatComponents = new int[flatComponentsArrayList.size()];
+    for (int i = 0; i < flatComponentsArrayList.size(); i++)
+    {
+      flatComponents[i] = flatComponentsArrayList.get(i);
+    }
+    
     int flatComponentsVector = FlatGameObject.createComponentTablesVector(builder, flatComponents);
     
     FlatGameObject.startFlatGameObject(builder);
@@ -273,6 +288,16 @@ public class GameObject implements IGameObject
     return null;
   }
   
+  @Override public boolean getSend()
+  {
+    return send;
+  }
+  
+  @Override public void setSend(boolean _send)
+  {
+    send = _send;
+  }
+  
   @Override public void update(int deltaTime)
   {
     for (IComponent component : components)
@@ -351,11 +376,19 @@ public class GameObjectManager implements IGameObjectManager
       }
       
       IGameObject gameObject = new GameObject(this, translation, rotation, scale);
+      
       String tag = xmlGameObject.getString("tag");
       if (tag != null)
       {
         gameObject.setTag(tag);
       }
+      
+      String send = xmlGameObject.getString("send");
+      if (send != null && send.equals("true"))
+      {
+        gameObject.setSend(true);
+      }
+      
       gameObject.fromXML(xmlGameObject.getString("file"));
       gameObjects.put(gameObject.getUID(), gameObject);
     }
@@ -363,15 +396,22 @@ public class GameObjectManager implements IGameObjectManager
   
   @Override public int serialize(FlatBufferBuilder builder)
   {
-    int i = 0;
-    int[] flatGameObjects = new int[gameObjects.size()];
+    ArrayList<Integer> flatGameObjectsList = new ArrayList<Integer>();
     
     for (Map.Entry entry : gameObjects.entrySet())
     {
       IGameObject gameObject = (IGameObject)entry.getValue();
       
-      flatGameObjects[i] = gameObject.serialize(builder);
-      i++;
+      if (gameObject.getSend())
+      {
+        flatGameObjectsList.add(gameObject.serialize(builder));
+      }
+    }
+    
+    int[] flatGameObjects = new int[flatGameObjectsList.size()];
+    for (int i = 0; i < flatGameObjectsList.size(); i++)
+    {
+      flatGameObjects[i] = flatGameObjectsList.get(i);
     }
     
     int flatGameObjectsVector = FlatGameWorld.createGameObjectsVector(builder, flatGameObjects);

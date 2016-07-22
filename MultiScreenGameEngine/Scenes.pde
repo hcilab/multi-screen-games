@@ -576,6 +576,7 @@ public class SpriteInstance implements ISpriteInstance
     FlatSprite.addTranslation(builder, FlatVec3.createFlatVec3(builder, translation.x, translation.y, translation.z));
     FlatSprite.addRotation(builder, FlatVec3.createFlatVec3(builder, rotation.x, rotation.y, rotation.z));
     FlatSprite.addScale(builder, FlatVec3.createFlatVec3(builder, scale.x, scale.y, scale.z));
+    FlatSprite.addTint(builder, FlatVec4.createFlatVec4(builder, tintColor.x, tintColor.y, tintColor.z, alpha));
     
     return FlatSprite.endFlatSprite(builder);
   }
@@ -592,6 +593,10 @@ public class SpriteInstance implements ISpriteInstance
     
     FlatVec3 flatScale = flatSprite.scale();
     scale = new PVector(flatScale.x(), flatScale.y(), flatScale.z());
+    
+    FlatVec4 flatTint = flatSprite.tint();
+    tintColor = new PVector(flatTint.x(), flatTint.y(), flatTint.z());
+    alpha = flatTint.w();
   }
 }
 
@@ -1049,11 +1054,11 @@ public class Scene implements IScene
       ((ISpriteInstance)entry.getValue()).render();
     }
     
-    perspectiveCamera.apply();
+    //perspectiveCamera.apply();
     
-    for (Map.Entry entry : modelInstances.entrySet())
-    {
-      ((IModelInstance)entry.getValue()).render();
-    }
+    //for (Map.Entry entry : modelInstances.entrySet())
+    //{
+    //  ((IModelInstance)entry.getValue()).render();
+    //}
   }
 }

@@ -8,7 +8,14 @@
 		</Sprite>
 	</Render>
 
-	<BoxPaddleController direction="horizontal" speed="350.0" playerID="3"/>
+	<ServerPaddleController 
+		direction="horizontal" 
+		speed="350.0"
+		clientID="3"
+		r="0.0"
+		g="0.0"
+		b="0.0"
+	/>
 
 	<RigidBody
 		active="true"

@@ -5,9 +5,11 @@ package msge.std;
 public final class FlatMessageBodyUnion {
   private FlatMessageBodyUnion() { }
   public static final byte NONE = 0;
-  public static final byte FlatGameWorld = 1;
+  public static final byte FlatInitializationMessage = 1;
+  public static final byte FlatGameWorld = 2;
+  public static final byte FlatPaddleControllerState = 3;
 
-  private static final String[] names = { "NONE", "FlatGameWorld", };
+  private static final String[] names = { "NONE", "FlatInitializationMessage", "FlatGameWorld", "FlatPaddleControllerState", };
 
   public static String name(int e) { return names[e]; }
 };

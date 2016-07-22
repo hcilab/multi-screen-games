@@ -59,32 +59,6 @@ public interface IGameStateController
 // IMPLEMENTATION
 //-------------------------------------------------------------------------------
 
-public class GameState_TestState extends GameState
-{
-  public GameState_TestState()
-  {
-    super();
-  }
-  
-  @Override public void onEnter()
-  {
-    localGameObjectManager.fromXML("levels/pong/pong_level.xml");
-  }
-  
-  @Override public void update(int deltaTime)
-  {
-    physicsWorld.step(((float)deltaTime) / 1000.0f, velocityIterations, positionIterations);
-    localGameObjectManager.update(deltaTime);
-    scene.render();
-    text("hello", 0, 0);
-  }
-  
-  @Override public void onExit()
-  {
-    localGameObjectManager.clearGameObjects();
-  }
-}
-
 public class GameState_ChooseClientServerState extends GameState
 {
   public GameState_ChooseClientServerState()
@@ -118,14 +92,23 @@ public class GameState_ChooseClientServerState extends GameState
 
 public class GameState_ServerState extends GameState implements IServerCallbackHandler
 {
+  private int nextClientID;
+  private int physicsTime;
+  
   public GameState_ServerState()
   {
     super();
+    
+    nextClientID = 1;
+    physicsTime = 0;
   }
   
   @Override public void onEnter()
   {
-    sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
+    frameRate(20);
+    sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
+    //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
+    //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");
     
     mainServer = new MSServer(this);
     mainServer.begin();
@@ -133,20 +116,79 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void update(int deltaTime)
   {
+    physicsTime += deltaTime;
+    while (physicsTime >= 30)
+    {
+      physicsWorld.step(0.030f, velocityIterations, positionIterations);
+      physicsTime -= 30;
+    }
+    
     sharedGameObjectManager.update(deltaTime);
     scene.render();
-    //mainServer.update();
+    mainServer.update();
     sendWorldToAllClients();
   }
   
   @Override public void onExit()
   {
+    sharedGameObjectManager.clearGameObjects();
     mainServer.end();
     mainServer = null;
   }
   
+  @Override public ByteBuffer getNewClientInitializationMessage()
+  {
+    FlatBufferBuilder builder = new FlatBufferBuilder(0);
+    
+    FlatInitializationMessage.startFlatInitializationMessage(builder);
+    FlatInitializationMessage.addClientID(builder, nextClientID);
+    int flatInitializationMessageOffset = FlatInitializationMessage.endFlatInitializationMessage(builder);
+    nextClientID++;
+    
+    FlatMessageHeader.startFlatMessageHeader(builder);
+    FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
+    FlatMessageHeader.addClientID(builder, 0);
+    int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
+    
+    FlatMessageBodyTable.startFlatMessageBodyTable(builder);
+    FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatInitializationMessage);
+    FlatMessageBodyTable.addBody(builder, flatInitializationMessageOffset);
+    int flatMessageBodyTable = FlatMessageBodyTable.endFlatMessageBodyTable(builder);
+    
+    FlatMessage.startFlatMessage(builder);
+    FlatMessage.addHeader(builder, flatMessageHeader);
+    FlatMessage.addBodyTable(builder, flatMessageBodyTable);
+    FlatMessage.finishFlatMessageBuffer(builder, FlatMessage.endFlatMessage(builder));
+    
+    return builder.dataBuffer();
+  }
+  
   @Override public void handleClientMessage(ByteBuffer clientMessage)
   {
+    FlatMessage flatServerMessage = FlatMessage.getRootAsFlatMessage(clientMessage);
+    
+    FlatMessageHeader flatMessageHeader = flatServerMessage.header();
+    int clientID = flatMessageHeader.clientID();
+    
+    FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
+    byte bodyType = bodyTable.bodyType();
+    
+    if (bodyType == FlatMessageBodyUnion.FlatPaddleControllerState)
+    {
+      FlatPaddleControllerState flatPaddleControllerState = (FlatPaddleControllerState)bodyTable.body(new FlatPaddleControllerState());
+      
+      IEvent event = new Event(EventType.CLIENT_PADDLE_CONTROLS);
+      event.addIntParameter("clientID", clientID);
+      event.addBooleanParameter("leftButtonDown", flatPaddleControllerState.leftButtonDown());
+      event.addBooleanParameter("rightButtonDown", flatPaddleControllerState.rightButtonDown());
+      event.addBooleanParameter("upButtonDown", flatPaddleControllerState.upButtonDown());
+      event.addBooleanParameter("downButtonDown", flatPaddleControllerState.downButtonDown());
+      event.addBooleanParameter("wButtonDown", flatPaddleControllerState.wButtonDown());
+      event.addBooleanParameter("aButtonDown", flatPaddleControllerState.aButtonDown());
+      event.addBooleanParameter("sButtonDown", flatPaddleControllerState.sButtonDown());
+      event.addBooleanParameter("dButtonDown", flatPaddleControllerState.dButtonDown());
+      eventManager.queueEvent(event);
+    }
   }
   
   private void sendWorldToAllClients()
@@ -156,6 +198,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
     int flatGameWorld = sharedGameObjectManager.serialize(builder);
     
     FlatMessageHeader.startFlatMessageHeader(builder);
+    FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
     FlatMessageHeader.addClientID(builder, 0);
     int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
     
@@ -186,8 +229,6 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
   
   @Override public void onEnter()
   {
-    localGameObjectManager.fromXML("levels/box_example/client_level_1.xml");
-    
     mainClient = new MSClient(this);
     
     if (!mainClient.connect())
@@ -202,17 +243,20 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
     if (mainClient != null && mainClient.isConnected())
     {
       mainClient.update();
-      //sendClientActionsToServer();
     }
+    
+    localGameObjectManager.update(deltaTime);
     
     synchronized(sharedGameObjectManager)
     {
       scene.render();
-    } //<>// //<>//
+    } //<>//
   }
   
   @Override public void onExit()
   {
+    localGameObjectManager.clearGameObjects();
+    
     if (mainClient != null)
     {
       mainClient.disconnect();
@@ -223,37 +267,59 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
   @Override public void handleServerMessage(ByteBuffer serverMessage)
   {
     FlatMessage flatServerMessage = FlatMessage.getRootAsFlatMessage(serverMessage);
-    int messageTargetID = flatServerMessage.header().clientID();
     
-    if (messageTargetID == 0 || messageTargetID == clientID)
+    FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
+    byte bodyType = bodyTable.bodyType();
+    
+    if (bodyType == FlatMessageBodyUnion.FlatGameWorld)
     {
-      if (flatServerMessage.bodyTable().bodyType() == FlatMessageBodyUnion.FlatGameWorld)
+      FlatGameWorld flatGameWorld = (FlatGameWorld)bodyTable.body(new FlatGameWorld());
+      
+      synchronized(sharedGameObjectManager)
       {
-        FlatGameWorld flatGameWorld = (FlatGameWorld)flatServerMessage.bodyTable().body(new FlatGameWorld());
-        
-        synchronized(sharedGameObjectManager)
-        {
-          sharedGameObjectManager.deserialize(flatGameWorld);
-          //println(sharedGameObjectManager);
-        }
+        sharedGameObjectManager.deserialize(flatGameWorld);
       }
-      //else if (flatServerMessage.bodyTable().bodyType() == FlatMessageBodyUnion.FlatServerInitMessage)
-      //{
-      //  FlatServerInitMessage flatServerInitMessage = (FlatServerInitMessage)flatServerMessage.body().body(new FlatServerInitMessage());
-        
-      //  outgoingClient = new MSClient(flatServerInitMessage.ip(), flatServerInitMessage.port(), this);
-      //  if (outgoingClient.connect())
-      //  {
-      //    println("Outgoing Client connected.");
-      //  }
-      //  else
-      //  {
-      //    println("Outgoing Client failed to connect.");
-      //  }
-      //}
+    }
+    else if (bodyType == FlatMessageBodyUnion.FlatInitializationMessage)
+    {
+      FlatInitializationMessage flatInitializationMessage = (FlatInitializationMessage)bodyTable.body(new FlatInitializationMessage());
+      
+      clientID = flatInitializationMessage.clientID();
+      
+      switch (clientID)
+      {
+        case 1:
+          localGameObjectManager.fromXML("levels/pong/client_level_blue.xml");
+          break;
+          
+        case 2:
+          localGameObjectManager.fromXML("levels/pong/client_level_green.xml");
+          break;
+          
+        case 3:
+          localGameObjectManager.fromXML("levels/pong/client_level_black.xml");
+          break;
+          
+        case 4:
+          localGameObjectManager.fromXML("levels/pong/client_level_red.xml");
+          break;
+          
+        default:
+          println("Invalid clientID received: " + clientID);
+          assert(false);
+      }
+      
+      IEvent event = new Event(EventType.CLIENT_ID_SET);
+      event.addIntParameter("clientID", clientID);
+      eventManager.queueEvent(event);
     }
   }
-} //<>// //<>//
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
+} //<>//
 
 public class GameStateController implements IGameStateController
 {
