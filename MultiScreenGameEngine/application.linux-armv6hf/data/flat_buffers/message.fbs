@@ -10,7 +10,7 @@ table FlatMessageHeader
 {
     timeStamp : long;
     clientID : int;
-} 
+}
 
 union FlatMessageBodyUnion
 {

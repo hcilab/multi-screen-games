@@ -4094,7 +4094,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   
   @Override public void onEnter()
   {
-    frameRate(30);
+    frameRate(20);
     sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
     //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
     //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");
@@ -4638,7 +4638,7 @@ public interface IServerCallbackHandler
 // IMPLEMENTATION
 //----------------------------------------------------------------
 
-public final String MAIN_SERVER_IP = "131.202.243.56";
+public final String MAIN_SERVER_IP = "127.0.0.1";//"131.202.243.56";
 public final int MAIN_SERVER_PORT = 5204;
 
 public final byte[] BEGIN_SEQUENCE = { 55, -45, 95, -44, 28, -74, -65, -66 };
@@ -5072,6 +5072,7 @@ public class MSServer implements IServer
       byte[] bytes = new byte[message.remaining()];
       message.get(bytes);
       byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
+      println("writing " + completeMessage.length + " bytes");
       
       synchronized(this)
       {
