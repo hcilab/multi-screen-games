@@ -1,0 +1,12 @@
+<PlayerArea>
+	<Block>
+		<Translation x="0.0" y="-45.0"/>
+		<Rotation z="90.0"/>
+		<Scale x="60.0" y="25.0"/>
+	</Block>
+	<Block>
+		<Translation x="0.0" y="55.0"/>
+		<Rotation z="0.0"/>
+		<Scale x="120.0" y="20.0"/>
+	</Block>
+</PlayerArea>

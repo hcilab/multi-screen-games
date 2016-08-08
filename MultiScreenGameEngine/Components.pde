@@ -11,6 +11,8 @@
 public enum ComponentType
 {
   // GENERAL
+  SIMPLE_SPRITE_RENDER, // server/client 
+  ROTATED_SPRITE_RENDER, // server/client
   RENDER,               // server/client
   RIGID_BODY,           // server
   PERSPECTIVE_CAMERA,   // client
@@ -26,6 +28,10 @@ public enum ComponentType
   SERVER_PADDLE_CONTROLLER,    // server
   BALL_CONTROLLER,      // server
   GOAL_LISTENER,        // server
+  
+  // TANKS
+  PLAYER_AREA,         // server
+  TANK_CONTROLLER,     // client
 }
 
 public interface IComponent
@@ -53,6 +59,12 @@ public String componentTypeEnumToString(ComponentType componentType)
 {
   switch(componentType)
   {
+    case SIMPLE_SPRITE_RENDER:
+      return "simpleSpriteRender";
+      
+    case ROTATED_SPRITE_RENDER:
+      return "rotatedSpriteRender";
+    
     case RENDER:
       return "render";
       
@@ -86,6 +98,12 @@ public String componentTypeEnumToString(ComponentType componentType)
     case GOAL_LISTENER:
       return "goalListener";
       
+    case PLAYER_AREA:
+      return "playerArea";
+      
+    case TANK_CONTROLLER:
+      return "tankController";
+    
     default:
       println("Assertion: ComponentType not added to EnumToString.");
       assert(false);
@@ -97,6 +115,12 @@ public ComponentType componentTypeStringToEnum(String componentType)
 {
   switch(componentType)
   {
+    case "simpleSpriteRender":
+      return ComponentType.SIMPLE_SPRITE_RENDER;
+      
+    case "rotatedSpriteRender":
+      return ComponentType.ROTATED_SPRITE_RENDER;
+      
     case "render":
       return ComponentType.RENDER;
       
@@ -129,6 +153,12 @@ public ComponentType componentTypeStringToEnum(String componentType)
       
     case "goalListener":
       return ComponentType.GOAL_LISTENER;
+      
+    case "playerArea":
+      return ComponentType.PLAYER_AREA;
+      
+    case "tankController":
+      return ComponentType.TANK_CONTROLLER;
       
     default:
       println("Assertion: String not mapped to a ComponentType.");
@@ -171,6 +201,125 @@ public abstract class NetworkComponent extends Component implements INetworkComp
   public NetworkComponent(IGameObject _gameObject)
   {
     super(_gameObject);
+  }
+}
+
+
+public class SimpleSpriteRenderComponent extends NetworkComponent
+{
+  private int spriteHandle;
+  
+  public SimpleSpriteRenderComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+  }
+  
+  @Override public void destroy()
+  {
+    scene.removeSpriteInstance(spriteHandle);
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    ISpriteInstance spriteInstance = new SpriteInstance(xmlComponent.getString("spriteName"));
+    spriteHandle = scene.addSpriteInstance(spriteInstance);
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.SIMPLE_SPRITE_RENDER;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+    ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
+    spriteInstance.setTranslation(gameObject.getTranslation());
+    spriteInstance.setRotation(gameObject.getRotation());
+    spriteInstance.setScale(gameObject.getScale());
+  }
+  
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    int flatSpriteNameOffset = builder.createString(scene.getSpriteInstance(spriteHandle).getSprite().getName());
+    
+    FlatSimpleSpriteRenderComponent.startFlatSimpleSpriteRenderComponent(builder);
+    FlatSimpleSpriteRenderComponent.addSpriteName(builder, flatSpriteNameOffset);
+    int flatSimpleSpriteRenderComponentOffset = FlatSimpleSpriteRenderComponent.endFlatSimpleSpriteRenderComponent(builder);
+    
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatSimpleSpriteRenderComponent);
+    FlatComponentTable.addComponent(builder, flatSimpleSpriteRenderComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
+  }
+  
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
+  {
+    FlatSimpleSpriteRenderComponent flatSimpleSpriteRenderComponent = (FlatSimpleSpriteRenderComponent)componentTable;
+    
+    ISpriteInstance spriteInstance = new SpriteInstance(flatSimpleSpriteRenderComponent.spriteName());
+    spriteHandle = scene.addSpriteInstance(spriteInstance);
+  }
+}
+
+
+public class RotatedSpriteRenderComponent extends NetworkComponent
+{
+  private int spriteHandle;
+  private float rotation;
+  
+  public RotatedSpriteRenderComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+  }
+  
+  @Override public void destroy()
+  {
+    scene.removeSpriteInstance(spriteHandle);
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    ISpriteInstance spriteInstance = new SpriteInstance(xmlComponent.getString("spriteName"));
+    rotation = xmlComponent.getFloat("rotation");
+    spriteInstance.setRotation(new PVector(0.0f, 0.0f, rotation));
+    spriteHandle = scene.addSpriteInstance(spriteInstance);
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.ROTATED_SPRITE_RENDER;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+    ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
+    spriteInstance.setTranslation(gameObject.getTranslation());
+    spriteInstance.setRotation(gameObject.getRotation().add(new PVector(0.0f, 0.0f, rotation)));
+    spriteInstance.setScale(gameObject.getScale());
+  }
+  
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    int flatSpriteNameOffset = builder.createString(scene.getSpriteInstance(spriteHandle).getSprite().getName());
+    
+    FlatRotatedSpriteRenderComponent.startFlatRotatedSpriteRenderComponent(builder);
+    FlatRotatedSpriteRenderComponent.addSpriteName(builder, flatSpriteNameOffset);
+    FlatRotatedSpriteRenderComponent.addRotation(builder, rotation);
+    int flatRotatedSpriteRenderComponentOffset = FlatRotatedSpriteRenderComponent.endFlatRotatedSpriteRenderComponent(builder);
+    
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatRotatedSpriteRenderComponent);
+    FlatComponentTable.addComponent(builder, flatRotatedSpriteRenderComponentOffset);
+    return FlatComponentTable.endFlatComponentTable(builder);
+  }
+  
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
+  {
+    FlatRotatedSpriteRenderComponent flatRotatedSpriteRenderComponent = (FlatRotatedSpriteRenderComponent)componentTable;
+    
+    ISpriteInstance spriteInstance = new SpriteInstance(flatRotatedSpriteRenderComponent.spriteName());
+    spriteInstance.setRotation(new PVector(0.0f, 0.0f, rotation));
+    spriteHandle = scene.addSpriteInstance(spriteInstance);
   }
 }
 
@@ -654,7 +803,7 @@ public class RigidBodyComponent extends Component
   @Override public void update(int deltaTime)  
   {  
     // Reverse sync the physically simulated position to the Game Object position.  
-    gameObject.setTranslation(new PVector(metersToPixels(body.getPosition().x), metersToPixels(body.getPosition().y)));  
+    gameObject.setTranslation(new PVector(metersToPixels(body.getPosition().x), metersToPixels(body.getPosition().y)));
   }
  
   public void onCollisionEnter(IGameObject collider)
@@ -1918,6 +2067,159 @@ public class GoalListenerComponent extends Component
 }
 
 
+public class PlayerAreaComponent extends Component
+{
+  private String playerAreasDirectory;
+  private float speed;
+  
+  private ArrayList<IGameObject> playerAreaObjects;
+  
+  private boolean upButtonDown;
+  private boolean downButtonDown;
+  private boolean leftButtonDown;
+  private boolean rightButtonDown;
+  
+  public PlayerAreaComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+    
+    playerAreaObjects = new ArrayList<IGameObject>();
+    
+    upButtonDown = false;
+    downButtonDown = false;
+    leftButtonDown = false;
+    rightButtonDown = false;
+  }
+  
+  @Override public void destroy()
+  {
+    clearGameObjects();
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    playerAreasDirectory = xmlComponent.getString("directory");
+    speed = xmlComponent.getFloat("speed");
+    
+    populateGameObjects();
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.PLAYER_AREA;
+  }
+ 
+  @Override public void update(int deltaTime)
+  {
+    if (eventManager.getEvents(EventType.UP_BUTTON_PRESSED).size() > 0)
+    {
+      upButtonDown = true;
+    }
+    if (eventManager.getEvents(EventType.DOWN_BUTTON_PRESSED).size() > 0)
+    {
+      downButtonDown = true;
+    }
+    if (eventManager.getEvents(EventType.LEFT_BUTTON_PRESSED).size() > 0)
+    {
+      leftButtonDown = true;
+    }
+    if (eventManager.getEvents(EventType.RIGHT_BUTTON_PRESSED).size() > 0)
+    {
+      rightButtonDown = true;
+    }
+    if (eventManager.getEvents(EventType.UP_BUTTON_RELEASED).size() > 0)
+    {
+      upButtonDown = false;
+    }
+    if (eventManager.getEvents(EventType.DOWN_BUTTON_RELEASED).size() > 0)
+    {
+      downButtonDown = false;
+    }
+    if (eventManager.getEvents(EventType.LEFT_BUTTON_RELEASED).size() > 0)
+    {
+      leftButtonDown = false;
+    }
+    if (eventManager.getEvents(EventType.RIGHT_BUTTON_RELEASED).size() > 0)
+    {
+      rightButtonDown = false;
+    }
+    
+    PVector velocity = new PVector(0.0f, 0.0f);
+    
+    if (upButtonDown)
+    {
+      velocity.y += 1.0f;
+    }
+    if (downButtonDown)
+    {
+      velocity.y -= 1.0f;
+    }
+    if (leftButtonDown)
+    {
+      velocity.x -= 1.0f;
+    }
+    if (rightButtonDown)
+    {
+      velocity.x += 1.0f;
+    }
+    
+    velocity = velocity.normalize().mult(speed);
+    
+    IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
+    if (component != null)
+    {
+      RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
+      rigidBodyComponent.setLinearVelocity(velocity);
+    }
+    
+    for (IGameObject child : playerAreaObjects)
+    {
+      component = child.getComponent(ComponentType.RIGID_BODY);
+      if (component != null)
+      {
+        RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
+        rigidBodyComponent.setLinearVelocity(velocity);
+      }
+    }
+  }
+  
+  public void populateGameObjects()
+  {
+    IGameObjectManager sharedGameObjectManager = gameStateController.getCurrentState().getSharedGameObjectManager();
+    
+    int randomPlayerArea = int(random(0, 12)) + 1;
+    String playerAreaFileName = playerAreasDirectory + "player_area_" + randomPlayerArea + ".xml";
+    
+    XML xmlPlayerArea = loadXML(playerAreaFileName);
+    assert(xmlPlayerArea.getName().equals("PlayerArea"));
+    
+    for (XML xmlBlock : xmlPlayerArea.getChildren("Block"))
+    {
+      XML xmlTranslation = xmlBlock.getChild("Translation");
+      PVector translation = new PVector(xmlTranslation.getFloat("x"), xmlTranslation.getFloat("y"), 0.0f);
+      
+      XML xmlRotation = xmlBlock.getChild("Rotation");
+      PVector rotation = new PVector(0.0f, 0.0f, radians(xmlRotation.getFloat("z")));
+      
+      XML xmlScale = xmlBlock.getChild("Scale");
+      PVector scale = new PVector(xmlScale.getFloat("x"), xmlScale.getFloat("y"), 1.0f);
+      
+      playerAreaObjects.add(sharedGameObjectManager.addGameObject("game_objects/tanks/block.xml", translation, rotation, scale));
+    }
+  }
+  
+  public void clearGameObjects()
+  {
+    IGameObjectManager sharedGameObjectManager = gameStateController.getCurrentState().getSharedGameObjectManager();
+    
+    for (IGameObject playerAreaObject : playerAreaObjects)
+    {
+      sharedGameObjectManager.removeGameObject(playerAreaObject.getUID());
+    }
+  }
+}
+
+
 public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
 {
   IComponent component = null;
@@ -1925,6 +2227,14 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
   
   switch (componentName)
   {
+    case "SimpleSpriteRender":
+      component = new SimpleSpriteRenderComponent(gameObject);
+      break;
+      
+    case "RotatedSpriteRender":
+      component = new RotatedSpriteRenderComponent(gameObject);
+      break;
+      
     case "Render":
       component = new RenderComponent(gameObject);
       break;
@@ -1968,6 +2278,14 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
     case "GoalListener":
       component = new GoalListenerComponent(gameObject);
       break;
+      
+    case "PlayerArea":
+      component = new PlayerAreaComponent(gameObject);
+      break;
+      
+    case "TankController":
+      component = new TankControllerComponent(gameObject);
+      break;
   }
   
   if (component != null)
@@ -1985,6 +2303,15 @@ public IComponent deserializeComponent(GameObject gameObject, FlatComponentTable
   
   switch (flatComponentTable.componentType())
   {
+    case FlatComponentUnion.FlatSimpleSpriteRenderComponent:
+      component = new SimpleSpriteRenderComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatSimpleSpriteRenderComponent());
+      break;
+      
+    case FlatComponentUnion.FlatRotatedSpriteRenderComponent:
+      component = new RotatedSpriteRenderComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatRotatedSpriteRenderComponent());
+    
     case FlatComponentUnion.FlatRenderComponent:
       component = new RenderComponent(gameObject);
       componentTable = flatComponentTable.component(new FlatRenderComponent());

@@ -23,6 +23,17 @@ table FlatModel
     scale : FlatVec3;
 }
 
+table FlatSimpleSpriteRenderComponent
+{
+    spriteName : string;
+}
+
+table FlatRotatedSpriteRenderComponent
+{
+    spriteName : string;
+    rotation : float;
+}
+
 table FlatRenderComponent
 {
     sprites : [FlatSprite];
@@ -81,6 +92,8 @@ table FlatScaleOverTimeComponent
 
 union FlatComponentUnion
 {
+    FlatSimpleSpriteRenderComponent,
+    FlatRotatedSpriteRenderComponent,
     FlatRenderComponent,
     FlatTranslateOverTimeComponent,
     FlatRotateOverTimeComponent,

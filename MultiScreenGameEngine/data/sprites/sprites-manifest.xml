@@ -3,4 +3,8 @@
 	<Sprite name="box" file="sprites/box/box.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
 	<Sprite name="score_empty" file="sprites/score/score_empty.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
 	<Sprite name="score_full" file="sprites/score/score_full.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
+	<Sprite name="block" file="sprites/block/block.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="tank_base" file="sprites/tank/tank_base.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="tank_cannon" file="sprites/tank/tank_cannon.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
 </Sprites>

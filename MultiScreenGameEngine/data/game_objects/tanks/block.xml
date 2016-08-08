@@ -1,0 +1,26 @@
+<GameObject>
+	<SimpleSpriteRender spriteName="block"/>
+
+	<RigidBody
+		active="true"
+		allowSleep="true"
+		angularDamping="0.0"
+		awake="false"
+		bullet="false"
+		fixedRotation="true"
+		gravityScale="0.0"
+		linearDamping="0.0"
+		type="dynamic"
+	>
+		<Fixture 
+			density="0.15" 
+			friction="0.0" 
+			isSensor="false" 
+			restitution="0.0"
+			categoryBits="2"
+			maskBits="4"
+		>
+			<Shape type="box" halfWidth="0.5" halfHeight="0.5" x="0.0" y="0.0"/>
+		</Fixture>
+	</RigidBody>
+</GameObject>

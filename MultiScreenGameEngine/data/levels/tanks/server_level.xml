@@ -1,0 +1,43 @@
+<Level>
+	<GameObject file="game_objects/tanks/camera_full.xml"/>
+
+	<GameObject file="game_objects/tanks/player_area.xml">
+		<Transform>
+			<Translation x="0.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="100.0" y="100.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/tanks/block.xml">
+		<Transform>
+			<Translation x="-980.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="40.0" y="2000.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/tanks/block.xml">
+		<Transform>
+			<Translation x="980.0" y="0.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="40.0" y="2000.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/tanks/block.xml">
+		<Transform>
+			<Translation x="0.0" y="-980.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="2000.0" y="40.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/tanks/block.xml">
+		<Transform>
+			<Translation x="0.0" y="980.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="2000.0" y="40.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+</Level>
