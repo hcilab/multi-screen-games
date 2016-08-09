@@ -1,8 +1,8 @@
-// Scheme file for the pong client sending controller state to server.
+// Schema file for sending client button-press info to the server.
 
 namespace msge.std;
 
-table FlatPaddleControllerState
+table FlatClientControllerState
 {
 	leftButtonDown: bool;
 	rightButtonDown: bool;

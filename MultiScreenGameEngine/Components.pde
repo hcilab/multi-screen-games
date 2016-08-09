@@ -17,6 +17,7 @@ public enum ComponentType
   RIGID_BODY,           // server
   PERSPECTIVE_CAMERA,   // client
   ORTHOGRAPHIC_CAMERA,  // client
+  CLIENT_CONTROLLER,    // client
   
   // BOX EXAMPLE
   TRANSLATE_OVER_TIME,  // server/client(testing only)
@@ -24,14 +25,13 @@ public enum ComponentType
   SCALE_OVER_TIME,      // server/client(testing only)
   
   // PONG
-  CLIENT_PADDLE_CONTROLLER,    // client
   SERVER_PADDLE_CONTROLLER,    // server
   BALL_CONTROLLER,      // server
   GOAL_LISTENER,        // server
   
   // TANKS
-  PLAYER_AREA,         // server
-  TANK_CONTROLLER,     // client
+  PLAYER_AREA,              // server
+  TANK_CONTROLLER,          // server
 }
 
 public interface IComponent
@@ -86,7 +86,7 @@ public String componentTypeEnumToString(ComponentType componentType)
     case SCALE_OVER_TIME:
       return "scaleOverTime";
       
-    case CLIENT_PADDLE_CONTROLLER:
+    case CLIENT_CONTROLLER:
       return "clientPaddleController";
       
     case SERVER_PADDLE_CONTROLLER:
@@ -142,8 +142,8 @@ public ComponentType componentTypeStringToEnum(String componentType)
     case "scaleOverTime":
       return ComponentType.SCALE_OVER_TIME;
     
-    case "clientPaddleController":
-      return ComponentType.CLIENT_PADDLE_CONTROLLER;
+    case "clientController":
+      return ComponentType.CLIENT_CONTROLLER;
       
     case "serverPaddleController":
       return ComponentType.SERVER_PADDLE_CONTROLLER;
@@ -1609,7 +1609,7 @@ public class ScaleOverTimeComponent extends NetworkComponent
 }
 
 
-public class ClientPaddleControllerComponent extends Component
+public class ClientControllerComponent extends Component
 {
   public int clientID;
   
@@ -1623,7 +1623,7 @@ public class ClientPaddleControllerComponent extends Component
   public boolean sButtonDown;
   public boolean dButtonDown;
   
-  public ClientPaddleControllerComponent(IGameObject _gameObject)
+  public ClientControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
@@ -1646,7 +1646,7 @@ public class ClientPaddleControllerComponent extends Component
   
   @Override public ComponentType getComponentType()
   {
-    return ComponentType.CLIENT_PADDLE_CONTROLLER;
+    return ComponentType.CLIENT_CONTROLLER;
   }
   
   @Override public void update(int deltaTime)
@@ -1744,16 +1744,16 @@ public class ClientPaddleControllerComponent extends Component
       {
         FlatBufferBuilder builder = new FlatBufferBuilder(0);
         
-        FlatPaddleControllerState.startFlatPaddleControllerState(builder);
-        FlatPaddleControllerState.addLeftButtonDown(builder, leftButtonDown);
-        FlatPaddleControllerState.addRightButtonDown(builder, rightButtonDown);
-        FlatPaddleControllerState.addUpButtonDown(builder, upButtonDown);
-        FlatPaddleControllerState.addDownButtonDown(builder, downButtonDown);
-        FlatPaddleControllerState.addWButtonDown(builder, wButtonDown);
-        FlatPaddleControllerState.addAButtonDown(builder, aButtonDown);
-        FlatPaddleControllerState.addSButtonDown(builder, sButtonDown);
-        FlatPaddleControllerState.addDButtonDown(builder, dButtonDown);
-        int flatPaddleControllerStateOffset = FlatPaddleControllerState.endFlatPaddleControllerState(builder);
+        FlatClientControllerState.startFlatClientControllerState(builder);
+        FlatClientControllerState.addLeftButtonDown(builder, leftButtonDown);
+        FlatClientControllerState.addRightButtonDown(builder, rightButtonDown);
+        FlatClientControllerState.addUpButtonDown(builder, upButtonDown);
+        FlatClientControllerState.addDownButtonDown(builder, downButtonDown);
+        FlatClientControllerState.addWButtonDown(builder, wButtonDown);
+        FlatClientControllerState.addAButtonDown(builder, aButtonDown);
+        FlatClientControllerState.addSButtonDown(builder, sButtonDown);
+        FlatClientControllerState.addDButtonDown(builder, dButtonDown);
+        int flatClientControllerStateOffset = FlatClientControllerState.endFlatClientControllerState(builder);
         
         FlatMessageHeader.startFlatMessageHeader(builder);
         FlatMessageHeader.addTimeStamp(builder, System.currentTimeMillis());
@@ -1761,8 +1761,8 @@ public class ClientPaddleControllerComponent extends Component
         int flatMessageHeader = FlatMessageHeader.endFlatMessageHeader(builder);
         
         FlatMessageBodyTable.startFlatMessageBodyTable(builder);
-        FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatPaddleControllerState);
-        FlatMessageBodyTable.addBody(builder, flatPaddleControllerStateOffset);
+        FlatMessageBodyTable.addBodyType(builder, FlatMessageBodyUnion.FlatClientControllerState);
+        FlatMessageBodyTable.addBody(builder, flatClientControllerStateOffset);
         int flatMessageBodyTable = FlatMessageBodyTable.endFlatMessageBodyTable(builder);
         
         FlatMessage.startFlatMessage(builder);
@@ -2220,6 +2220,32 @@ public class PlayerAreaComponent extends Component
 }
 
 
+public class TankControllerComponent extends Component
+{
+  public TankControllerComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.TANK_CONTROLLER;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+  }
+}
+
+
 public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
 {
   IComponent component = null;
@@ -2263,8 +2289,8 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
       component = new ScaleOverTimeComponent(gameObject);
       break;
       
-    case "ClientPaddleController":
-      component = new ClientPaddleControllerComponent(gameObject);
+    case "ClientController":
+      component = new ClientControllerComponent(gameObject);
       break;
       
     case "ServerPaddleController":
@@ -2278,7 +2304,7 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
     case "GoalListener":
       component = new GoalListenerComponent(gameObject);
       break;
-      
+    
     case "PlayerArea":
       component = new PlayerAreaComponent(gameObject);
       break;

@@ -171,7 +171,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
     FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
     byte bodyType = bodyTable.bodyType();
     
-    if (bodyType == FlatMessageBodyUnion.FlatPaddleControllerState)
+    if (bodyType == FlatMessageBodyUnion.FlatClientControllerState)
     {
       FlatPaddleControllerState flatPaddleControllerState = (FlatPaddleControllerState)bodyTable.body(new FlatPaddleControllerState());
       

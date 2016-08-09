@@ -2,7 +2,7 @@
 
 include "init_message.fbs";
 include "world.fbs";
-include "paddle_controller_state.fbs";
+include "client_controller_state.fbs";
 
 namespace msge.std;
 
@@ -16,7 +16,7 @@ union FlatMessageBodyUnion
 {
     FlatInitializationMessage,
     FlatGameWorld,
-    FlatPaddleControllerState
+    FlatClientControllerState
 }
 
 table FlatMessageBodyTable

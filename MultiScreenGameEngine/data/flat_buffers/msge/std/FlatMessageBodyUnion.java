@@ -7,9 +7,9 @@ public final class FlatMessageBodyUnion {
   public static final byte NONE = 0;
   public static final byte FlatInitializationMessage = 1;
   public static final byte FlatGameWorld = 2;
-  public static final byte FlatPaddleControllerState = 3;
+  public static final byte FlatClientControllerState = 3;
 
-  private static final String[] names = { "NONE", "FlatInitializationMessage", "FlatGameWorld", "FlatPaddleControllerState", };
+  private static final String[] names = { "NONE", "FlatInitializationMessage", "FlatGameWorld", "FlatClientControllerState", };
 
   public static String name(int e) { return names[e]; }
 };

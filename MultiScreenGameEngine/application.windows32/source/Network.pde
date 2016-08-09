@@ -479,7 +479,6 @@ public class MSServer implements IServer
       byte[] bytes = new byte[message.remaining()];
       message.get(bytes);
       byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
-      println("writing " + completeMessage.length + " bytes");
       
       synchronized(this)
       {
