@@ -49,6 +49,7 @@ void setup()
   size(500, 500, P3D);
   surface.setResizable(true);
   
+  frameRate(20);
   mainObject = this;
   eventManager = new EventManager();
   gravity = new Vec2(0.0, 10.0);
