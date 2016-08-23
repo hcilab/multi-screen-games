@@ -48,8 +48,8 @@ public interface IServerCallbackHandler
 public final String MAIN_SERVER_IP = "127.0.0.1";//"131.202.243.56";
 public final int MAIN_SERVER_PORT = 5204;
 
-public final byte[] BEGIN_SEQUENCE = { 55, -45, 95, -44, 28, -74, -65, -66 };
-public final byte[] END_SEQUENCE = { -72, 107, -85, -117, 45, -123, 69, 20 };
+public final byte[] BEGIN_SEQUENCE = { 55, -45, 95, -44, 28, -74, -65, -66, -91, -115, 113, -57, 90, -33, 101, 96 };
+public final byte[] END_SEQUENCE = { -72, 107, -85, -117, 45, -123, 69, 20, 103, 123, -19, -66, -127, -41, 31, -123 };
 public final byte[] SUB_SERVER_CONNECT_SEQUENCE = { 108, 85, 57, 60, 93, 0, -15, -113 };
 public final int TIME_OUT_LIMIT = 6000;
 
@@ -577,6 +577,8 @@ public class MSServer implements IServer
     private Client pClient;
     private NetworkCircularByteBuffer circularBuffer;
     
+    private byte[] initMessage;
+    
     public Server pServer;
     
     
@@ -594,15 +596,12 @@ public class MSServer implements IServer
       assert(pClient == null);
       pClient = p_pClient;
       
-      ByteBuffer initMessage = mainServer.getHandler().getNewClientInitializationMessage();
-      if (initMessage != null)
-      {
-        byte[] bytes = new byte[initMessage.remaining()];
-        initMessage.get(bytes);
-        byte[] completeMessage = attachBeginAndEndSequencesToMessage(bytes);
-        
-        write(completeMessage);
-      }
+      ByteBuffer initMessageBuffer = mainServer.getHandler().getNewClientInitializationMessage();
+      byte[] bytes = new byte[initMessageBuffer.remaining()];
+      initMessageBuffer.get(bytes);
+      initMessage = attachBeginAndEndSequencesToMessage(bytes);
+      
+      pClient.write(initMessage);
     }
     
     public void update()

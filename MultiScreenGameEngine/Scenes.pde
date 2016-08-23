@@ -376,6 +376,17 @@ public class OrthographicCamera extends Camera implements IOrthographicCamera
   {
     super.apply();
     ortho(left, right, bottom, top, near, far);
+    
+    //println("applying cam: ");
+    //println("\tpos: " + position.x + ", " + position.y + ", " + position.z);
+    //println("\ttarget: " + target.x + ", " + target.y + ", " + target.z);
+    //println("\tup: " + up.x + ", " + up.y + ", " + up.z);
+    //println("\tleft: " + left);
+    //println("\tright: " + right);
+    //println("\tbottom: " + bottom);
+    //println("\ttop: " + top);
+    //println("\tnear: " + near);
+    //println("\tfar: " + far);
   }
 }
 
@@ -399,10 +410,10 @@ public class Sprite implements ISprite
   {
     pShape = createShape();
     pShape.beginShape();
-    pShape.vertex(-0.5f, -0.5f, 0.0f, maxU, minV);
-    pShape.vertex(0.5f, -0.5f, 0.0f, minU, minV);
-    pShape.vertex(0.5f, 0.5f, 0.0f, minU, maxV);
-    pShape.vertex(-0.5f, 0.5f, 0.0f, maxU, maxV);
+    pShape.vertex(-0.5f, -0.5f, 0.0f, minU, maxV);
+    pShape.vertex(0.5f, -0.5f, 0.0f, maxU, maxV);
+    pShape.vertex(0.5f, 0.5f, 0.0f, maxU, minV);
+    pShape.vertex(-0.5f, 0.5f, 0.0f, minU, minV);
     pShape.texture(materialManager.getTexture(fileName));
     pShape.endShape(CLOSE);
     pShape.disableStyle();

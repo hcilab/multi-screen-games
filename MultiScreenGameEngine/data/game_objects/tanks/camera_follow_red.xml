@@ -1,0 +1,14 @@
+<GameObject>
+	<FollowTankCamera tag="player_area" clientID="1">
+		<Position x="0.0" y="0.0" z="-10.0"/>
+		<Target x="0.0" y="0.0" z="0.0"/>
+		<Up x="0.0" y="-1.0" z="0.0"/>
+
+		<Left value="-100.0"/>
+		<Right value="100.0"/>
+		<Bottom value="-100.0"/>
+		<Top value="100.0"/>
+		<Near value="0.1"/>
+		<Far value="100.0"/>
+	</FollowTankCamera>
+</GameObject>

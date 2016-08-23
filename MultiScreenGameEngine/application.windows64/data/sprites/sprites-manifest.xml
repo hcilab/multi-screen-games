@@ -1,6 +1,19 @@
 <Sprites>
 	<Sprite name="ball" file="sprites/ball/ball.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="ball_blue" file="sprites/ball/ball_blue.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="ball_red" file="sprites/ball/ball_red.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
 	<Sprite name="box" file="sprites/box/box.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
 	<Sprite name="score_empty" file="sprites/score/score_empty.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
 	<Sprite name="score_full" file="sprites/score/score_full.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
+	<Sprite name="block" file="sprites/block/block.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
+	<Sprite name="tank_base_red" file="sprites/tank/tank_base_red.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="tank_cannon_red" file="sprites/tank/tank_cannon_red.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+
+	<Sprite name="tank_base_blue" file="sprites/tank/tank_base_blue.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
+	<Sprite name="tank_cannon_blue" file="sprites/tank/tank_cannon_blue.png" minU="0.0" maxU="1.0" minV="0.0" maxV="1.0"/>
 </Sprites>

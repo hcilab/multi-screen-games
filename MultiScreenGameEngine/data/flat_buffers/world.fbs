@@ -90,6 +90,11 @@ table FlatScaleOverTimeComponent
     zUpperLimit : float;
 }
 
+table FlatClientIDComponent
+{
+    clientID : int;
+}
+
 union FlatComponentUnion
 {
     FlatSimpleSpriteRenderComponent,
@@ -97,7 +102,8 @@ union FlatComponentUnion
     FlatRenderComponent,
     FlatTranslateOverTimeComponent,
     FlatRotateOverTimeComponent,
-    FlatScaleOverTimeComponent
+    FlatScaleOverTimeComponent,
+    FlatClientIDComponent
 }
 
 table FlatComponentTable

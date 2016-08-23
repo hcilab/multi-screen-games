@@ -5,12 +5,15 @@ package msge.std;
 public final class FlatComponentUnion {
   private FlatComponentUnion() { }
   public static final byte NONE = 0;
-  public static final byte FlatRenderComponent = 1;
-  public static final byte FlatTranslateOverTimeComponent = 2;
-  public static final byte FlatRotateOverTimeComponent = 3;
-  public static final byte FlatScaleOverTimeComponent = 4;
+  public static final byte FlatSimpleSpriteRenderComponent = 1;
+  public static final byte FlatRotatedSpriteRenderComponent = 2;
+  public static final byte FlatRenderComponent = 3;
+  public static final byte FlatTranslateOverTimeComponent = 4;
+  public static final byte FlatRotateOverTimeComponent = 5;
+  public static final byte FlatScaleOverTimeComponent = 6;
+  public static final byte FlatClientIDComponent = 7;
 
-  private static final String[] names = { "NONE", "FlatRenderComponent", "FlatTranslateOverTimeComponent", "FlatRotateOverTimeComponent", "FlatScaleOverTimeComponent", };
+  private static final String[] names = { "NONE", "FlatSimpleSpriteRenderComponent", "FlatRotatedSpriteRenderComponent", "FlatRenderComponent", "FlatTranslateOverTimeComponent", "FlatRotateOverTimeComponent", "FlatScaleOverTimeComponent", "FlatClientIDComponent", };
 
   public static String name(int e) { return names[e]; }
 };

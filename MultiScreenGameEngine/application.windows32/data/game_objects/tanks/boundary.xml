@@ -1,8 +1,5 @@
 <GameObject>
-	<SimpleSpriteRender spriteName="tank_base"/>
-	<RotatedSpriteRender spriteName="tank_cannon" rotation="0.0"/>
-
-	<TankController/>
+	<SimpleSpriteRender spriteName="block"/>
 
 	<RigidBody
 		active="true"
@@ -13,15 +10,15 @@
 		fixedRotation="true"
 		gravityScale="0.0"
 		linearDamping="0.0"
-		type="dynamic"
+		type="static"
 	>
 		<Fixture 
 			density="0.15" 
 			friction="0.0" 
 			isSensor="false" 
 			restitution="0.0"
-			categoryBits="2"
-			maskBits="4"
+			categoryBits="16"
+			maskBits="15"
 		>
 			<Shape type="box" halfWidth="0.5" halfHeight="0.5" x="0.0" y="0.0"/>
 		</Fixture>

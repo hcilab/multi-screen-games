@@ -1,0 +1,29 @@
+<GameObject>
+	<SimpleSpriteRender spriteName="tank_base_red"/>
+	<RotatedSpriteRender spriteName="tank_cannon_red" rotation="33.0"/>
+
+	<TankController clientID="1" cannonballFile="game_objects/tanks/cannonball_red.xml" rotateSpeed="0.1"/>
+
+	<RigidBody
+		active="true"
+		allowSleep="true"
+		angularDamping="0.0"
+		awake="true"
+		bullet="false"
+		fixedRotation="true"
+		gravityScale="1.0"
+		linearDamping="0.0"
+		type="kinematic"
+	>
+		<Fixture 
+			density="0.15" 
+			friction="0.0" 
+			isSensor="false" 
+			restitution="0.0"
+			categoryBits="2"
+			maskBits="7"
+		>
+			<Shape type="box" halfWidth="0.6" halfHeight="0.6" x="0.0" y="0.0"/>
+		</Fixture>
+	</RigidBody>
+</GameObject>

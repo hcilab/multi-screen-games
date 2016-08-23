@@ -32,6 +32,10 @@ public enum ComponentType
   // TANKS
   PLAYER_AREA,              // server
   TANK_CONTROLLER,          // server
+  CANNONBALL_CONTROLLER,    // server
+  TURN_MANAGER,             // server
+  FOLLOW_TANK_CAMERA,       // client
+  CLIENT_ID,                // server/client
 }
 
 public interface IComponent
@@ -87,7 +91,7 @@ public String componentTypeEnumToString(ComponentType componentType)
       return "scaleOverTime";
       
     case CLIENT_CONTROLLER:
-      return "clientPaddleController";
+      return "clientController";
       
     case SERVER_PADDLE_CONTROLLER:
       return "serverPaddleController";
@@ -103,6 +107,18 @@ public String componentTypeEnumToString(ComponentType componentType)
       
     case TANK_CONTROLLER:
       return "tankController";
+      
+    case CANNONBALL_CONTROLLER:
+      return "cannonballController";
+      
+    case TURN_MANAGER:
+      return "turnManager";
+      
+    case FOLLOW_TANK_CAMERA:
+      return "followTankCamera";
+      
+    case CLIENT_ID:
+      return "clientID";
     
     default:
       println("Assertion: ComponentType not added to EnumToString.");
@@ -159,6 +175,18 @@ public ComponentType componentTypeStringToEnum(String componentType)
       
     case "tankController":
       return ComponentType.TANK_CONTROLLER;
+      
+    case "cannonballController":
+      return ComponentType.CANNONBALL_CONTROLLER;
+      
+    case "turnManager":
+      return ComponentType.TURN_MANAGER;
+      
+    case "followTankCamera":
+      return ComponentType.FOLLOW_TANK_CAMERA;
+      
+    case "clientID":
+      return ComponentType.CLIENT_ID;
       
     default:
       println("Assertion: String not mapped to a ComponentType.");
@@ -281,7 +309,6 @@ public class RotatedSpriteRenderComponent extends NetworkComponent
   {
     ISpriteInstance spriteInstance = new SpriteInstance(xmlComponent.getString("spriteName"));
     rotation = xmlComponent.getFloat("rotation");
-    spriteInstance.setRotation(new PVector(0.0f, 0.0f, rotation));
     spriteHandle = scene.addSpriteInstance(spriteInstance);
   }
   
@@ -294,7 +321,7 @@ public class RotatedSpriteRenderComponent extends NetworkComponent
   {
     ISpriteInstance spriteInstance = scene.getSpriteInstance(spriteHandle);
     spriteInstance.setTranslation(gameObject.getTranslation());
-    spriteInstance.setRotation(gameObject.getRotation().add(new PVector(0.0f, 0.0f, rotation)));
+    spriteInstance.setRotation(new PVector(0.0f, 0.0f, gameObject.getRotation().z + radians(rotation)));
     spriteInstance.setScale(gameObject.getScale());
   }
   
@@ -318,8 +345,18 @@ public class RotatedSpriteRenderComponent extends NetworkComponent
     FlatRotatedSpriteRenderComponent flatRotatedSpriteRenderComponent = (FlatRotatedSpriteRenderComponent)componentTable;
     
     ISpriteInstance spriteInstance = new SpriteInstance(flatRotatedSpriteRenderComponent.spriteName());
-    spriteInstance.setRotation(new PVector(0.0f, 0.0f, rotation));
     spriteHandle = scene.addSpriteInstance(spriteInstance);
+    rotation = flatRotatedSpriteRenderComponent.rotation();
+  }
+  
+  public float getRotation()
+  {
+    return rotation;
+  }
+  
+  public void setRotation(float _rotation)
+  {
+    rotation = _rotation;
   }
 }
 
@@ -771,24 +808,20 @@ public class RigidBodyComponent extends Component
               onCollideEvent.eventParameters.put("gParameterName", xmlOnCollideEvent.getString("gParameterName"));
               onCollideEvent.eventParameters.put("bParameterName", xmlOnCollideEvent.getString("bParameterName"));
             }
-            //else if (stringEventType.equals("GAME_OVER"))
-            //{
-            //  onCollideEvent.eventType = EventType.GAME_OVER;
-            //}
-            //else if (stringEventType.equals("DESTROY_COIN"))
-            //{
-            //  onCollideEvent.eventType = EventType.DESTROY_COIN;
-            //  onCollideEvent.eventParameters = new HashMap<String, String>();
-            //  onCollideEvent.eventParameters.put("coinParameterName", xmlOnCollideEvent.getString("coinParameterName"));
-            //}
-            //else if (stringEventType.equals("PLAYER_PLATFORM_COLLISION"))
-            //{
-            //  onCollideEvent.eventType = EventType.PLAYER_PLATFORM_COLLISION;
-            //  onCollideEvent.eventParameters = new HashMap<String, String>();
-            //  onCollideEvent.eventParameters.put("platformParameterName", xmlOnCollideEvent.getString("platformParameterName"));
-            //}
+            else if (stringEventType.equals("BALL_BLOCK_COLLISION"))
+            {
+              onCollideEvent.eventType = EventType.BALL_BLOCK_COLLISION;
+              onCollideEvent.eventParameters = new HashMap<String, String>();
+            }
+            else if (stringEventType.equals("BALL_TANK_COLLISION"))
+            {
+              onCollideEvent.eventType = EventType.BALL_TANK_COLLISION;
+              onCollideEvent.eventParameters = new HashMap<String, String>();
+              onCollideEvent.eventParameters.put("ballClientIDParameterName", xmlOnCollideEvent.getString("ballClientIDParameterName"));
+              onCollideEvent.eventParameters.put("tankClientIDParameterName", xmlOnCollideEvent.getString("tankClientIDParameterName"));
+            }
             
-            onCollideEvents.add(onCollideEvent); 
+            onCollideEvents.add(onCollideEvent);
           }  
         }  
       }  
@@ -801,8 +834,8 @@ public class RigidBodyComponent extends Component
   } 
     
   @Override public void update(int deltaTime)  
-  {  
-    // Reverse sync the physically simulated position to the Game Object position.  
+  {
+    // Reverse sync the physically simulated position to the Game Object position.
     gameObject.setTranslation(new PVector(metersToPixels(body.getPosition().x), metersToPixels(body.getPosition().y)));
   }
  
@@ -837,23 +870,31 @@ public class RigidBodyComponent extends Component
           
           eventManager.queueEvent(event);
         }
-        //else if (onCollideEvent.eventType == EventType.GAME_OVER)  
-        //{  
-        //  eventManager.queueEvent(new Event(EventType.GAME_OVER));  
-        //}  
-        //else if (onCollideEvent.eventType == EventType.DESTROY_COIN)  
-        //{   
-        //  Event event = new Event(EventType.DESTROY_COIN);  
-        //  event.addGameObjectParameter(onCollideEvent.eventParameters.get("coinParameterName"), collider);  
-        //  eventManager.queueEvent(event);  
-  
-        //} 
-        //else if (onCollideEvent.eventType == EventType.PLAYER_PLATFORM_COLLISION) 
-        //{  
-        //  Event event = new Event(EventType.PLAYER_PLATFORM_COLLISION);  
-        //  event.addGameObjectParameter(onCollideEvent.eventParameters.get("platformParameterName"), collider);  
-        //  eventManager.queueEvent(event);  
-        //}  
+        else if (onCollideEvent.eventType == EventType.BALL_BLOCK_COLLISION)
+        {
+          Event event = new Event(EventType.BALL_BLOCK_COLLISION);
+          eventManager.queueEvent(event);
+        }
+        else if (onCollideEvent.eventType == EventType.BALL_TANK_COLLISION)
+        {
+          Event event = new Event(EventType.BALL_TANK_COLLISION);
+          
+          IComponent component = gameObject.getComponent(ComponentType.CANNONBALL_CONTROLLER);
+          if (component != null)
+          {
+            CannonballControllerComponent cannonballControllerComponent = (CannonballControllerComponent)component;
+            event.addIntParameter(onCollideEvent.eventParameters.get("ballClientIDParameterName"), cannonballControllerComponent.getClientID());
+          }
+          
+          component = collider.getComponent(ComponentType.TANK_CONTROLLER);
+          if (component != null)
+          {
+            TankControllerComponent tankControllerComponent = (TankControllerComponent)component;
+            event.addIntParameter(onCollideEvent.eventParameters.get("tankClientIDParameterName"), tankControllerComponent.getClientID());
+          }
+          
+          eventManager.queueEvent(event);
+        }
       }  
     } 
   }
@@ -880,7 +921,7 @@ public class RigidBodyComponent extends Component
   }
   
   public void setLinearVelocity(PVector linearVelocity)  
-  {  
+  {
     body.setLinearVelocity(new Vec2(pixelsToMeters(linearVelocity.x), pixelsToMeters(linearVelocity.y)));  
   }  
     
@@ -1623,6 +1664,8 @@ public class ClientControllerComponent extends Component
   public boolean sButtonDown;
   public boolean dButtonDown;
   
+  public boolean spacebarDown;
+  
   public ClientControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
@@ -1638,6 +1681,8 @@ public class ClientControllerComponent extends Component
     aButtonDown = false;
     sButtonDown = false;
     dButtonDown = false;
+    
+    spacebarDown = false;
   }
   
   @Override public void fromXML(XML xmlComponent)
@@ -1700,6 +1745,11 @@ public class ClientControllerComponent extends Component
         dButtonDown = true;
       }
       
+      if (eventManager.getEvents(EventType.SPACEBAR_PRESSED).size() > 0)
+      {
+        spacebarDown = true;
+      }
+      
       if (eventManager.getEvents(EventType.LEFT_BUTTON_RELEASED).size() > 0)
       {
         leftButtonDown = false;
@@ -1740,6 +1790,11 @@ public class ClientControllerComponent extends Component
         dButtonDown = false;
       }
       
+      if (eventManager.getEvents(EventType.SPACEBAR_RELEASED).size() > 0)
+      {
+        spacebarDown = false;
+      }
+      
       if (mainClient != null && mainClient.isConnected())
       {
         FlatBufferBuilder builder = new FlatBufferBuilder(0);
@@ -1753,6 +1808,7 @@ public class ClientControllerComponent extends Component
         FlatClientControllerState.addAButtonDown(builder, aButtonDown);
         FlatClientControllerState.addSButtonDown(builder, sButtonDown);
         FlatClientControllerState.addDButtonDown(builder, dButtonDown);
+        FlatClientControllerState.addSpacebarDown(builder, spacebarDown);
         int flatClientControllerStateOffset = FlatClientControllerState.endFlatClientControllerState(builder);
         
         FlatMessageHeader.startFlatMessageHeader(builder);
@@ -1823,7 +1879,7 @@ public class ServerPaddleControllerComponent extends Component
   
   @Override public void update(int deltaTime)
   {
-    for (IEvent event : eventManager.getEvents(EventType.CLIENT_PADDLE_CONTROLS))
+    for (IEvent event : eventManager.getEvents(EventType.CLIENT_CONTROLS))
     {
       if (event.getRequiredIntParameter("clientID") == clientID)
       {
@@ -2071,24 +2127,15 @@ public class PlayerAreaComponent extends Component
 {
   private String playerAreasDirectory;
   private float speed;
+  private int clientID;
   
   private ArrayList<IGameObject> playerAreaObjects;
-  
-  private boolean upButtonDown;
-  private boolean downButtonDown;
-  private boolean leftButtonDown;
-  private boolean rightButtonDown;
   
   public PlayerAreaComponent(IGameObject _gameObject)
   {
     super(_gameObject);
     
     playerAreaObjects = new ArrayList<IGameObject>();
-    
-    upButtonDown = false;
-    downButtonDown = false;
-    leftButtonDown = false;
-    rightButtonDown = false;
   }
   
   @Override public void destroy()
@@ -2100,6 +2147,7 @@ public class PlayerAreaComponent extends Component
   {
     playerAreasDirectory = xmlComponent.getString("directory");
     speed = xmlComponent.getFloat("speed");
+    clientID = xmlComponent.getInt("clientID");
     
     populateGameObjects();
   }
@@ -2111,59 +2159,43 @@ public class PlayerAreaComponent extends Component
  
   @Override public void update(int deltaTime)
   {
-    if (eventManager.getEvents(EventType.UP_BUTTON_PRESSED).size() > 0)
-    {
-      upButtonDown = true;
-    }
-    if (eventManager.getEvents(EventType.DOWN_BUTTON_PRESSED).size() > 0)
-    {
-      downButtonDown = true;
-    }
-    if (eventManager.getEvents(EventType.LEFT_BUTTON_PRESSED).size() > 0)
-    {
-      leftButtonDown = true;
-    }
-    if (eventManager.getEvents(EventType.RIGHT_BUTTON_PRESSED).size() > 0)
-    {
-      rightButtonDown = true;
-    }
-    if (eventManager.getEvents(EventType.UP_BUTTON_RELEASED).size() > 0)
-    {
-      upButtonDown = false;
-    }
-    if (eventManager.getEvents(EventType.DOWN_BUTTON_RELEASED).size() > 0)
-    {
-      downButtonDown = false;
-    }
-    if (eventManager.getEvents(EventType.LEFT_BUTTON_RELEASED).size() > 0)
-    {
-      leftButtonDown = false;
-    }
-    if (eventManager.getEvents(EventType.RIGHT_BUTTON_RELEASED).size() > 0)
-    {
-      rightButtonDown = false;
-    }
-    
     PVector velocity = new PVector(0.0f, 0.0f);
     
-    if (upButtonDown)
+    for (IEvent event : eventManager.getEvents(EventType.CLIENT_ID_SET))
     {
-      velocity.y += 1.0f;
-    }
-    if (downButtonDown)
-    {
-      velocity.y -= 1.0f;
-    }
-    if (leftButtonDown)
-    {
-      velocity.x -= 1.0f;
-    }
-    if (rightButtonDown)
-    {
-      velocity.x += 1.0f;
+      clientID = event.getRequiredIntParameter("clientID");
     }
     
-    velocity = velocity.normalize().mult(speed);
+    for (IEvent turnEvent : eventManager.getEvents(EventType.CURRENT_TURN))
+    {
+      if (turnEvent.getRequiredIntParameter("currentTurn") == clientID)
+      {
+        for (IEvent controlsEvent : eventManager.getEvents(EventType.CLIENT_CONTROLS))
+        {
+          if (controlsEvent.getRequiredIntParameter("clientID") == clientID)
+          {
+            if (controlsEvent.getRequiredBooleanParameter("wButtonDown"))
+            {
+              velocity.y += 1.0f;
+            }
+            if (controlsEvent.getRequiredBooleanParameter("aButtonDown"))
+            {
+              velocity.x -= 1.0f;
+            }
+            if (controlsEvent.getRequiredBooleanParameter("sButtonDown"))
+            {
+              velocity.y -= 1.0f;
+            }
+            if (controlsEvent.getRequiredBooleanParameter("dButtonDown"))
+            {
+              velocity.x += 1.0f;
+            }
+          }
+        }
+      }
+    }
+    
+    velocity.normalize().mult(speed * deltaTime);
     
     IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
     if (component != null)
@@ -2181,9 +2213,18 @@ public class PlayerAreaComponent extends Component
         rigidBodyComponent.setLinearVelocity(velocity);
       }
     }
+    
+    for (IEvent event : eventManager.getEvents(EventType.BALL_TANK_COLLISION))
+    {
+      if (event.getRequiredIntParameter("ballClientID") != clientID && event.getRequiredIntParameter("tankClientID") == clientID)
+      {
+        clearGameObjects();
+        populateGameObjects();
+      }
+    }
   }
   
-  public void populateGameObjects()
+  private void populateGameObjects()
   {
     IGameObjectManager sharedGameObjectManager = gameStateController.getCurrentState().getSharedGameObjectManager();
     
@@ -2204,11 +2245,43 @@ public class PlayerAreaComponent extends Component
       XML xmlScale = xmlBlock.getChild("Scale");
       PVector scale = new PVector(xmlScale.getFloat("x"), xmlScale.getFloat("y"), 1.0f);
       
-      playerAreaObjects.add(sharedGameObjectManager.addGameObject("game_objects/tanks/block.xml", translation, rotation, scale));
+      IGameObject block = sharedGameObjectManager.addGameObject("game_objects/tanks/block.xml", 
+                                                                new PVector(gameObject.getTranslation().x + translation.x, gameObject.getTranslation().y + translation.y), 
+                                                                new PVector(radians(gameObject.getRotation().x) + rotation.x, radians(gameObject.getRotation().y) + rotation.y, radians(gameObject.getRotation().z) + rotation.z), 
+                                                                new PVector(scale.x, scale.y, 1.0));
+      block.setSend(gameObject.getSend());
+      block.setTag("block");
+      playerAreaObjects.add(block);
+    }
+    
+    for (XML xmlTankPosition : xmlPlayerArea.getChildren("TankPosition"))
+    {
+      PVector translation = new PVector(xmlTankPosition.getFloat("x"), xmlTankPosition.getFloat("y"), 0.0f);
+      
+      if (clientID == 1)
+      {
+        IGameObject tank = sharedGameObjectManager.addGameObject("game_objects/tanks/tank_red.xml", 
+                                                                  new PVector(gameObject.getTranslation().x + translation.x, gameObject.getTranslation().y + translation.y), 
+                                                                  new PVector(0.0f, 0.0f, 0.0f), 
+                                                                  new PVector(30.0f, 30.0f, 1.0f));
+        tank.setSend(gameObject.getSend());
+        tank.setTag("tank");
+        playerAreaObjects.add(tank);
+      }
+      else if (clientID == 2)
+      {
+        IGameObject tank = sharedGameObjectManager.addGameObject("game_objects/tanks/tank_blue.xml", 
+                                                                  new PVector(gameObject.getTranslation().x + translation.x, gameObject.getTranslation().y + translation.y), 
+                                                                  new PVector(0.0f, 0.0f, 0.0f),
+                                                                  new PVector(30.0f, 30.0f, 1.0f));
+        tank.setSend(gameObject.getSend());
+        tank.setTag("tank");
+        playerAreaObjects.add(tank);
+      }
     }
   }
   
-  public void clearGameObjects()
+  private void clearGameObjects()
   {
     IGameObjectManager sharedGameObjectManager = gameStateController.getCurrentState().getSharedGameObjectManager();
     
@@ -2217,14 +2290,226 @@ public class PlayerAreaComponent extends Component
       sharedGameObjectManager.removeGameObject(playerAreaObject.getUID());
     }
   }
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
 }
 
 
 public class TankControllerComponent extends Component
 {
+  private int clientID;
+  private float rotateSpeed;
+  private String cannonballFile;
+  
+  private float rotation;
+  private boolean shooting;
+  
   public TankControllerComponent(IGameObject _gameObject)
   {
     super(_gameObject);
+    
+    shooting = false;
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    clientID = xmlComponent.getInt("clientID");
+    rotateSpeed = xmlComponent.getFloat("rotateSpeed");
+    cannonballFile = xmlComponent.getString("cannonballFile");
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.TANK_CONTROLLER;
+  }
+    
+  @Override public void update(int deltaTime)
+  {
+    for (IEvent event : eventManager.getEvents(EventType.CLIENT_ID_SET))
+    {
+      clientID = event.getRequiredIntParameter("clientID");
+    }
+    
+    IComponent component = gameObject.getComponent(ComponentType.ROTATED_SPRITE_RENDER);
+    if (component!= null)
+    {
+      RotatedSpriteRenderComponent rotatedSpriteRenderComponent = (RotatedSpriteRenderComponent)component;
+      rotation = rotatedSpriteRenderComponent.getRotation();
+      
+      for (IEvent turnEvent : eventManager.getEvents(EventType.CURRENT_TURN))
+      {
+        if (turnEvent.getRequiredIntParameter("currentTurn") == clientID)
+        {
+          for (IEvent controlsEvent : eventManager.getEvents(EventType.CLIENT_CONTROLS))
+          {
+            if (controlsEvent.getRequiredIntParameter("clientID") == clientID)
+            {
+              if (controlsEvent.getRequiredBooleanParameter("leftButtonDown"))
+              {
+                rotation += rotateSpeed * deltaTime;
+              }
+              
+              if (controlsEvent.getRequiredBooleanParameter("rightButtonDown"))
+              {
+                rotation -= rotateSpeed * deltaTime;
+              }
+              
+              if (controlsEvent.getRequiredBooleanParameter("spacebarDown"))
+              {
+                shoot();
+              }
+            }
+          }
+        }
+      }
+      
+      if (eventManager.getEvents(EventType.BALL_DELETED).size() > 0)
+      {
+        shooting = false;
+      }
+      
+      if (rotation > 180.0f)
+      {
+        rotation = 180.0f;
+      }
+      else if (rotation < 0.0f)
+      {
+        rotation = 0.0f;
+      }
+      
+      rotatedSpriteRenderComponent.setRotation(rotation);
+    }
+  }
+  
+  private void shoot()
+  {
+    if (!shooting)
+    {
+      shooting = true;
+      
+      float rotationRads = radians(rotation);
+      float x = cos(rotationRads);
+      float y = sin(rotationRads);
+      float distance = 10.0f;
+      float speed = 600.0f;
+      
+      PVector gameObjectTranslation = gameObject.getTranslation();
+      PVector gameObjectScale = gameObject.getScale();
+      
+      IGameObject cannonBall = gameStateController.getCurrentState().getSharedGameObjectManager().addGameObject(
+        cannonballFile,
+        new PVector(gameObjectTranslation.x + (distance * x), gameObjectTranslation.y + (distance * y), gameObjectTranslation.z),
+        gameObject.getRotation(),
+        new PVector(gameObjectScale.x / 10.0f, gameObjectScale.y / 10.0f, 1.0f)
+      );
+      
+      cannonBall.setSend(true);
+      
+      IComponent component = cannonBall.getComponent(ComponentType.RIGID_BODY);
+      if (component != null)
+      {
+        RigidBodyComponent rigidBodyComponent = (RigidBodyComponent)component;
+        rigidBodyComponent.setLinearVelocity(new PVector(speed * x, speed * y));
+      }
+    }
+  }
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
+}
+
+
+public class CannonballControllerComponent extends Component
+{
+  private int clientID;
+  private int maxLifetime;
+  
+  private int lifetime;
+  private int blockCollisionCount;
+  
+  public CannonballControllerComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+    
+    lifetime = 0;
+    blockCollisionCount = 0;
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    clientID = xmlComponent.getInt("clientID");
+    maxLifetime = xmlComponent.getInt("maxLifetime");
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.CANNONBALL_CONTROLLER;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+    lifetime += deltaTime;
+    
+    if (lifetime > maxLifetime)
+    {
+      deleteSelf();
+    }
+    
+    if (eventManager.getEvents(EventType.BALL_BLOCK_COLLISION).size() > 0)
+    {
+      blockCollisionCount++;
+      
+      if (blockCollisionCount > 2)
+      {
+        deleteSelf();
+      }
+    }
+    
+    for (IEvent event : eventManager.getEvents(EventType.BALL_TANK_COLLISION))
+    {
+      if (event.getRequiredIntParameter("ballClientID") == clientID && event.getRequiredIntParameter("tankClientID") != clientID)
+      {
+        deleteSelf();
+      }
+    }
+  }
+  
+  private void deleteSelf()
+  {
+    Event event = new Event(EventType.BALL_DELETED);
+    eventManager.queueEvent(event);
+    gameStateController.getSharedGameObjectManager().removeGameObject(gameObject.getUID());
+  }
+  
+  public int getClientID()
+  {
+    return clientID;
+  }
+}
+
+
+public class TurnManagerComponent extends Component
+{
+  private int currentTurn;
+  
+  public TurnManagerComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+    
+    currentTurn = 1;
   }
   
   @Override public void destroy()
@@ -2237,11 +2522,178 @@ public class TankControllerComponent extends Component
   
   @Override public ComponentType getComponentType()
   {
-    return ComponentType.TANK_CONTROLLER;
+    return ComponentType.TURN_MANAGER;
   }
   
   @Override public void update(int deltaTime)
   {
+    if (eventManager.getEvents(EventType.BALL_DELETED).size() > 0)
+    {
+      if (currentTurn == 1) currentTurn = 2;
+      else if (currentTurn == 2) currentTurn = 1;
+    }
+    
+    IEvent event = new Event(EventType.CURRENT_TURN);
+    event.addIntParameter("currentTurn", currentTurn);
+    eventManager.queueEvent(event);
+  }
+}
+
+
+public class FollowTankCameraComponent extends Component
+{
+  private IOrthographicCamera camera;
+  
+  private String tag;
+  private int clientID;
+  
+  public FollowTankCameraComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+    
+    camera = new OrthographicCamera();
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    tag = xmlComponent.getString("tag");
+    clientID = xmlComponent.getInt("clientID");
+    
+    for (XML xmlParameter : xmlComponent.getChildren())
+    {
+      if (xmlParameter.getName().equals("Position"))
+      {
+        PVector position = new PVector();
+        position.x = xmlParameter.getFloat("x");
+        position.y = xmlParameter.getFloat("y");
+        position.z = xmlParameter.getFloat("z");
+        camera.setPosition(position);
+      }
+      else if (xmlParameter.getName().equals("Target"))
+      {
+        PVector target = new PVector();
+        target.x = xmlParameter.getFloat("x");
+        target.y = xmlParameter.getFloat("y");
+        target.z = xmlParameter.getFloat("z");
+        camera.setTarget(target);
+      }
+      else if (xmlParameter.getName().equals("Up"))
+      {
+        PVector up = new PVector();
+        up.x = xmlParameter.getFloat("x");
+        up.y = xmlParameter.getFloat("y");
+        up.z = xmlParameter.getFloat("z");
+        camera.setUp(up);
+      }
+      else if (xmlParameter.getName().equals("Left"))
+      {
+        camera.setLeft(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Right"))
+      {
+        camera.setRight(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Bottom"))
+      {
+        camera.setBottom(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Top"))
+      {
+        camera.setTop(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Near"))
+      {
+        camera.setNear(xmlParameter.getFloat("value"));
+      }
+      else if (xmlParameter.getName().equals("Far"))
+      {
+        camera.setFar(xmlParameter.getFloat("value"));
+      }
+    }
+    
+    scene.setOrthographicCamera(camera);
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.ORTHOGRAPHIC_CAMERA;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+    ArrayList<IGameObject> playerAreas = gameStateController.getSharedGameObjectManager().getGameObjectsByTag(tag);
+    
+    for (IGameObject playerArea : playerAreas)
+    {
+      IComponent component = playerArea.getComponent(ComponentType.CLIENT_ID);
+      if (component != null)
+      {
+        ClientIDComponent clientIDComponent = (ClientIDComponent)component;
+        if (clientIDComponent.getClientID() == clientID)
+        {
+          PVector playerAreaTranslation = playerArea.getTranslation();
+          
+          camera.setPosition(new PVector(playerAreaTranslation.x, playerAreaTranslation.y, camera.getPosition().z));
+          camera.setTarget(new PVector(playerAreaTranslation.x, playerAreaTranslation.y, camera.getTarget().z));
+        }
+      }
+    }
+  }
+}
+
+
+public class ClientIDComponent extends NetworkComponent
+{
+  private int clientID;
+  
+  public ClientIDComponent(IGameObject _gameObject)
+  {
+    super(_gameObject);
+  }
+  
+  @Override public void destroy()
+  {
+  }
+  
+  @Override public void fromXML(XML xmlComponent)
+  {
+    clientID = xmlComponent.getInt("value");
+  }
+  
+  @Override public ComponentType getComponentType()
+  {
+    return ComponentType.CLIENT_ID;
+  }
+  
+  @Override public void update(int deltaTime)
+  {
+  }
+
+  @Override public int serialize(FlatBufferBuilder builder)
+  {
+    FlatClientIDComponent.startFlatClientIDComponent(builder);
+    FlatClientIDComponent.addClientID(builder, clientID);
+    int flatClientIDComponent = FlatClientIDComponent.endFlatClientIDComponent(builder);
+    
+    FlatComponentTable.startFlatComponentTable(builder);
+    FlatComponentTable.addComponentType(builder, FlatComponentUnion.FlatClientIDComponent);
+    FlatComponentTable.addComponent(builder, flatClientIDComponent);
+    return FlatComponentTable.endFlatComponentTable(builder);
+  }
+  
+  @Override public void deserialize(com.google.flatbuffers.Table componentTable)
+  {
+    FlatClientIDComponent flatClientIDComponent = (FlatClientIDComponent)componentTable;
+    clientID = flatClientIDComponent.clientID();
+  }
+  
+  public int getClientID()
+  {
+    return clientID;
   }
 }
 
@@ -2312,6 +2764,22 @@ public IComponent componentFactory(GameObject gameObject, XML xmlComponent)
     case "TankController":
       component = new TankControllerComponent(gameObject);
       break;
+      
+    case "CannonballController":
+      component = new CannonballControllerComponent(gameObject);
+      break;
+      
+    case "TurnManager":
+      component = new TurnManagerComponent(gameObject);
+      break;
+      
+    case "FollowTankCamera":
+      component = new FollowTankCameraComponent(gameObject);
+      break;
+      
+    case "ClientID":
+      component = new ClientIDComponent(gameObject);
+      break;
   }
   
   if (component != null)
@@ -2337,6 +2805,7 @@ public IComponent deserializeComponent(GameObject gameObject, FlatComponentTable
     case FlatComponentUnion.FlatRotatedSpriteRenderComponent:
       component = new RotatedSpriteRenderComponent(gameObject);
       componentTable = flatComponentTable.component(new FlatRotatedSpriteRenderComponent());
+      break;
     
     case FlatComponentUnion.FlatRenderComponent:
       component = new RenderComponent(gameObject);
@@ -2356,6 +2825,11 @@ public IComponent deserializeComponent(GameObject gameObject, FlatComponentTable
     case FlatComponentUnion.FlatScaleOverTimeComponent:
       component = new ScaleOverTimeComponent(gameObject);
       componentTable = flatComponentTable.component(new FlatScaleOverTimeComponent());
+      break;
+      
+    case FlatComponentUnion.FlatClientIDComponent:
+      component = new ClientIDComponent(gameObject);
+      componentTable = flatComponentTable.component(new FlatClientIDComponent());
       break;
       
     default:

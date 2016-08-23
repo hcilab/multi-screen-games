@@ -51,7 +51,7 @@ void setup()
   
   mainObject = this;
   eventManager = new EventManager();
-  gravity = new Vec2(0.0, 10.0);
+  gravity = new Vec2(0.0, -10.0);
   physicsWorld = new World(gravity); // gravity
   contactListener = new PhysicsContactListener();
   physicsWorld.setContactListener(contactListener);
@@ -172,6 +172,11 @@ void keyPressed()
         event = new Event(EventType.D_BUTTON_PRESSED);
         eventManager.queueEvent(event);
         return;
+        
+      case ' ':
+        event = new Event(EventType.SPACEBAR_PRESSED);
+        eventManager.queueEvent(event);
+        return;
     }
   }
 }
@@ -225,6 +230,11 @@ void keyReleased()
         
       case 'd':
         event = new Event(EventType.D_BUTTON_RELEASED);
+        eventManager.queueEvent(event);
+        return;
+        
+      case ' ':
+        event = new Event(EventType.SPACEBAR_RELEASED);
         eventManager.queueEvent(event);
         return;
     }

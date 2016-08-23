@@ -22,6 +22,8 @@ public enum EventType
   S_BUTTON_PRESSED,
   D_BUTTON_PRESSED,
   
+  SPACEBAR_PRESSED,
+  
   UP_BUTTON_RELEASED,
   DOWN_BUTTON_RELEASED,
   LEFT_BUTTON_RELEASED,
@@ -32,11 +34,18 @@ public enum EventType
   S_BUTTON_RELEASED,
   D_BUTTON_RELEASED,
   
+  SPACEBAR_RELEASED,
+  
   CLIENT_ID_SET,
   
-  CLIENT_PADDLE_CONTROLS,
+  CLIENT_CONTROLS,
   GOAL_SCORED,
   BALL_PLAYER_COLLISION,
+  
+  BALL_BLOCK_COLLISION,
+  BALL_TANK_COLLISION,
+  BALL_DELETED,
+  CURRENT_TURN,
 }
 
 // This is the actual event that is created by the sender and sent to all listeners.
@@ -242,6 +251,8 @@ public class EventManager implements IEventManager
     addEventTypeToMaps(EventType.S_BUTTON_PRESSED);
     addEventTypeToMaps(EventType.D_BUTTON_PRESSED);
     
+    addEventTypeToMaps(EventType.SPACEBAR_PRESSED);
+    
     addEventTypeToMaps(EventType.UP_BUTTON_RELEASED);
     addEventTypeToMaps(EventType.DOWN_BUTTON_RELEASED);
     addEventTypeToMaps(EventType.LEFT_BUTTON_RELEASED);
@@ -252,11 +263,18 @@ public class EventManager implements IEventManager
     addEventTypeToMaps(EventType.S_BUTTON_RELEASED);
     addEventTypeToMaps(EventType.D_BUTTON_RELEASED);
     
+    addEventTypeToMaps(EventType.SPACEBAR_RELEASED);
+    
     addEventTypeToMaps(EventType.CLIENT_ID_SET);
     
-    addEventTypeToMaps(EventType.CLIENT_PADDLE_CONTROLS);
+    addEventTypeToMaps(EventType.CLIENT_CONTROLS);
     addEventTypeToMaps(EventType.GOAL_SCORED);
     addEventTypeToMaps(EventType.BALL_PLAYER_COLLISION);
+    
+    addEventTypeToMaps(EventType.BALL_BLOCK_COLLISION);
+    addEventTypeToMaps(EventType.BALL_TANK_COLLISION);
+    addEventTypeToMaps(EventType.BALL_DELETED);
+    addEventTypeToMaps(EventType.CURRENT_TURN);
   }
   
   private void addEventTypeToMaps(EventType eventType)

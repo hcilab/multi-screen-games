@@ -1,0 +1,41 @@
+<GameObject>
+	<SimpleSpriteRender spriteName="ball_blue"/>
+
+	<CannonballController clientID="2" maxLifetime="8000"/>
+
+	<RigidBody
+		active="true"
+		allowSleep="false"
+		awake="true"
+		bullet="true"
+		fixedRotation="true"
+		gravityScale="1.0"
+		linearDamping="0.0"
+		angularDamping="0.0"
+		type="dynamic"
+	>
+		<Fixture 
+			density="0.1" 
+			friction="0.0" 
+			isSensor="false" 
+			restitution="0.2"
+			categoryBits="4"
+			maskBits="23"
+		>
+			<Shape type="circle" radius="0.5" x="0.0" y="0.0"/>
+		</Fixture>
+
+		<OnCollideEvents>
+			<Event
+				collidedWith="block"
+				eventType="BALL_BLOCK_COLLISION"
+			/>
+			<Event
+				collidedWith="tank"
+				eventType="BALL_TANK_COLLISION"
+				ballClientIDParameterName="ballClientID"
+				tankClientIDParameterName="tankClientID"
+			/>
+		</OnCollideEvents>
+	</RigidBody>
+</GameObject>

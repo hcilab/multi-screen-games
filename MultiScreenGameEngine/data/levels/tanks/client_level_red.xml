@@ -1,0 +1,4 @@
+<Level>
+	<GameObject file="game_objects/tanks/camera_follow_red.xml"/>
+	<GameObject file="game_objects/tanks/client_controller.xml"/>
+</Level>

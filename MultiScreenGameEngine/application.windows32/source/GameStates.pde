@@ -106,9 +106,7 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
   @Override public void onEnter()
   {
     frameRate(20);
-    sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
-    //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
-    //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");
+    sharedGameObjectManager.fromXML("levels/tanks/server_level.xml");
     
     mainServer = new MSServer(this);
     mainServer.begin();
@@ -173,20 +171,20 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
     FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
     byte bodyType = bodyTable.bodyType();
     
-    if (bodyType == FlatMessageBodyUnion.FlatPaddleControllerState)
+    if (bodyType == FlatMessageBodyUnion.FlatClientControllerState)
     {
-      FlatPaddleControllerState flatPaddleControllerState = (FlatPaddleControllerState)bodyTable.body(new FlatPaddleControllerState());
-      
-      IEvent event = new Event(EventType.CLIENT_PADDLE_CONTROLS);
+      FlatClientControllerState flatClientControllerState = (FlatClientControllerState)bodyTable.body(new FlatClientControllerState());
+      IEvent event = new Event(EventType.CLIENT_CONTROLS);
       event.addIntParameter("clientID", clientID);
-      event.addBooleanParameter("leftButtonDown", flatPaddleControllerState.leftButtonDown());
-      event.addBooleanParameter("rightButtonDown", flatPaddleControllerState.rightButtonDown());
-      event.addBooleanParameter("upButtonDown", flatPaddleControllerState.upButtonDown());
-      event.addBooleanParameter("downButtonDown", flatPaddleControllerState.downButtonDown());
-      event.addBooleanParameter("wButtonDown", flatPaddleControllerState.wButtonDown());
-      event.addBooleanParameter("aButtonDown", flatPaddleControllerState.aButtonDown());
-      event.addBooleanParameter("sButtonDown", flatPaddleControllerState.sButtonDown());
-      event.addBooleanParameter("dButtonDown", flatPaddleControllerState.dButtonDown());
+      event.addBooleanParameter("leftButtonDown", flatClientControllerState.leftButtonDown());
+      event.addBooleanParameter("rightButtonDown", flatClientControllerState.rightButtonDown());
+      event.addBooleanParameter("upButtonDown", flatClientControllerState.upButtonDown());
+      event.addBooleanParameter("downButtonDown", flatClientControllerState.downButtonDown());
+      event.addBooleanParameter("wButtonDown", flatClientControllerState.wButtonDown());
+      event.addBooleanParameter("aButtonDown", flatClientControllerState.aButtonDown());
+      event.addBooleanParameter("sButtonDown", flatClientControllerState.sButtonDown());
+      event.addBooleanParameter("dButtonDown", flatClientControllerState.dButtonDown());
+      event.addBooleanParameter("spacebarDown", flatClientControllerState.spacebarDown());
       eventManager.queueEvent(event);
     }
   }
@@ -271,16 +269,7 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
     FlatMessageBodyTable bodyTable = flatServerMessage.bodyTable();
     byte bodyType = bodyTable.bodyType();
     
-    if (bodyType == FlatMessageBodyUnion.FlatGameWorld)
-    {
-      FlatGameWorld flatGameWorld = (FlatGameWorld)bodyTable.body(new FlatGameWorld());
-      
-      synchronized(sharedGameObjectManager)
-      {
-        sharedGameObjectManager.deserialize(flatGameWorld);
-      }
-    }
-    else if (bodyType == FlatMessageBodyUnion.FlatInitializationMessage)
+    if (clientID == -1 && bodyType == FlatMessageBodyUnion.FlatInitializationMessage)
     {
       FlatInitializationMessage flatInitializationMessage = (FlatInitializationMessage)bodyTable.body(new FlatInitializationMessage());
       
@@ -289,19 +278,11 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
       switch (clientID)
       {
         case 1:
-          localGameObjectManager.fromXML("levels/pong/client_level_blue.xml");
+          localGameObjectManager.fromXML("levels/tanks/client_level_red.xml");
           break;
           
         case 2:
-          localGameObjectManager.fromXML("levels/pong/client_level_green.xml");
-          break;
-          
-        case 3:
-          localGameObjectManager.fromXML("levels/pong/client_level_black.xml");
-          break;
-          
-        case 4:
-          localGameObjectManager.fromXML("levels/pong/client_level_red.xml");
+          localGameObjectManager.fromXML("levels/tanks/client_level_blue.xml");
           break;
           
         default:
@@ -312,6 +293,17 @@ public class GameState_ClientState extends GameState implements IClientCallbackH
       IEvent event = new Event(EventType.CLIENT_ID_SET);
       event.addIntParameter("clientID", clientID);
       eventManager.queueEvent(event);
+    }
+    
+    else if (bodyType == FlatMessageBodyUnion.FlatGameWorld)
+    {
+      FlatGameWorld flatGameWorld = (FlatGameWorld)bodyTable.body(new FlatGameWorld());
+      
+      synchronized(sharedGameObjectManager)
+      {
+        sharedGameObjectManager.deserialize(flatGameWorld);
+        sharedGameObjectManager.update(0);
+      }
     }
   }
   

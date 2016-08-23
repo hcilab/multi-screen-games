@@ -309,7 +309,7 @@ public class GameObject implements IGameObject
   @Override public String toString()
   {
     String stringGameObject = new String();
-    
+  
     stringGameObject += "========== GameObject ==========\n";
     stringGameObject += "UID: " + UID + "\t\t tag: " + tag + "\n";
     stringGameObject += "Translation: (" + translation.x + ", " + translation.y + ", " + translation.z + ")\n";
