@@ -10,7 +10,7 @@
 
 // The supported types of events. When adding a new event type, also add to the
 // EventManager constructor a new collection for the type. 
-public enum EventType //Button pressed and released
+public enum EventType
 {
   UP_BUTTON_PRESSED,
   DOWN_BUTTON_PRESSED,
@@ -60,7 +60,8 @@ public interface IEvent
   public boolean     getOptionalBooleanParameter(String name, boolean defaultValue);
   public IGameObject getOptionalGameObjectParameter(String name, IGameObject defaultValue);
   
-  // Use these to get a parameter that MUST HAVE BEEN SET by the sender. If the sender did not set it, this is an error and the game will halt.
+  // Use these to get a parameter that must have been set by the sender. If the sender did not set it, this is an error
+  // and the game will halt.
   public String      getRequiredStringParameter(String name);
   public float       getRequiredFloatParameter(String name);
   public int         getRequiredIntParameter(String name);

@@ -1,4 +1,4 @@
-//=========================================================================================================
+ //=========================================================================================================
 // Author: David Hanna
 //
 // An object which is an entity in the game world.
@@ -226,7 +226,6 @@ public class GameObject implements IGameObject
   }
   
   @Override public void setTag(String _tag)
-  
   {
     tag = _tag;
   }

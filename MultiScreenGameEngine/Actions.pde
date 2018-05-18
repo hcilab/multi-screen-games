@@ -8,25 +8,25 @@
 // INTERFACE
 //------------------------------------------------------------------------------------------------------
 
-public enum ActionType //enum = special Java type to define collections of constants
+public enum ActionType
 {
-  //TranslateOverTimeComponent
+  // TranslateOverTimeComponent
   TRANSLATE,
   SET_MOVING_LEFT,
   SET_MOVING_DOWN,
   SET_MOVING_FORWARD,
   
-  //RotateOverTimeComponent
+  // RotateOverTimeComponent
   ROTATE,
   
-  //ScaleOverTimeComponent
+  // ScaleOverTimeComponent
   SCALE,
   SET_X_SCALING_UP,
   SET_Y_SCALING_UP,
   SET_Z_SCALING_UP,
 }
 
-public interface IAction //do not know yet
+public interface IAction
 {
   public int getTimeStamp();
   public ActionType getActionType();
@@ -34,14 +34,13 @@ public interface IAction //do not know yet
   public void apply();
   
   public JSONObject serialize();
-  public void deserialize(JSONObject jsonAction); //end
+  public void deserialize(JSONObject jsonAction);
 }
 
 //------------------------------------------------------------------------------------------------------
 // IMPLEMENTATION
 //------------------------------------------------------------------------------------------------------
 
-//enum to string
 public String actionTypeEnumToString(ActionType actionType)
 {
   switch(actionType)
@@ -80,7 +79,6 @@ public String actionTypeEnumToString(ActionType actionType)
   }
 }
 
-//string to enum
 public ActionType actionTypeStringToEnum(String actionType)
 {
   switch(actionType)
@@ -119,7 +117,6 @@ public ActionType actionTypeStringToEnum(String actionType)
   }
 }
 
-//don't know yet
 public abstract class Action implements IAction
 {
   protected int timeStamp;
