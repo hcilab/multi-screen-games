@@ -1,4 +1,4 @@
- //========================================================================================
+//========================================================================================
 // Author: David Hanna
 //
 // The abstraction of a game state.
@@ -69,7 +69,7 @@ public class GameState_ChooseClientServerState extends GameState
   @Override public void onEnter()
   {
   }
-  
+  //Choose to become Server or Client
   @Override public void update(int deltaTime)
   {
     if (keyPressed)
@@ -94,18 +94,18 @@ public class GameState_ServerState extends GameState implements IServerCallbackH
 {
   private int nextClientID;
   private int physicsTime;
-  
+  //What the Serve does
   public GameState_ServerState()
   {
     super();
-    
+    //When each new client joins
     nextClientID = 1;
     physicsTime = 0;
   }
   
   @Override public void onEnter()
   {
-    //frameRate(20);
+    frameRate(20);
     sharedGameObjectManager.fromXML("levels/pong/server_level.xml");
     //sharedGameObjectManager.fromXML("levels/box_example/shared_level.xml");
     //sharedGameObjectManager.fromXML("levels/pong/small_level.xml");

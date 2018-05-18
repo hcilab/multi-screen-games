@@ -133,9 +133,6 @@ public interface ITextInstance
   public void fromXML(XML xmlTextLine);
   
   public void render();
-  
-  //public int serialize(FlatBufferBuilder builder);
-  //public void deserialize(FlatText flatText);
 }
 
 public interface IScene
@@ -958,15 +955,6 @@ public class Text implements ITextInstance
     
     popMatrix();
   }
-  
-  //@Override public int serialize(FlatBufferBuilder builder)
-  //{
-  //  return 0;
-  //}
-  
-  //@Override public void deserialize(FlatText flatText)
-  //{
-  //}
 }
 
 
@@ -1053,12 +1041,5 @@ public class Scene implements IScene
     {
       ((ISpriteInstance)entry.getValue()).render();
     }
-    
-    //perspectiveCamera.apply();
-    
-    //for (Map.Entry entry : modelInstances.entrySet())
-    //{
-    //  ((IModelInstance)entry.getValue()).render();
-    //}
   }
 }
