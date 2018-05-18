@@ -1,8 +1,0 @@
-// Schema file for telling a client some initialization information.
-
-namespace msge.std;
-
-table FlatInitializationMessage
-{
-	clientID : int;
-}
