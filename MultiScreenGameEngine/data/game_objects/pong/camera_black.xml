@@ -4,9 +4,9 @@
 		<Target x="0.0" y="0.0" z="0.0"/>
 		<Up x="0.0" y="-1.0" z="0.0"/>
 
-		<Left value="-333.0"/>
-		<Right value="333.0"/>
-		<Bottom value="333.0"/>
+		<Left value="-725.0"/>
+		<Right value="725.0"/>
+		<Bottom value="-450.0"/>
 		<Top value="1000.0"/>
 		<Near value="0.1"/>
 		<Far value="100.0"/>

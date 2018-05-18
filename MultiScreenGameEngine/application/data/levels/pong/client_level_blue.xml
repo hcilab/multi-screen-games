@@ -1,7 +1,8 @@
 <Level>
-	<GameObject file="game_objects/pong/camera_full.xml"/>
+	<!--Displays the level for Blue-->
+	<GameObject file="game_objects/pong/camera_blue.xml"/>
 	<GameObject file="game_objects/pong/client_paddle_controller.xml"/>
-
+	
 	<GameObject file="game_objects/pong/wall.xml">
 		<Transform>
 			<Translation x="333.0" y="666.0" z="0.0"/>

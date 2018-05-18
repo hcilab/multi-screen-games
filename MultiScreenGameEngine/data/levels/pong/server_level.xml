@@ -1,5 +1,6 @@
 <Level>
-	<GameObject file="game_objects/pong/camera_full.xml"/>
+	<!--Displays the level for the Server-->
+	<GameObject file="game_objects/pong/camera_middle.xml"/>
 
 	<GameObject file="game_objects/pong/ball.xml" tag="ball" send="true">
 		<Transform>
@@ -9,42 +10,6 @@
 		</Transform>
 	</GameObject>
 
-<!-- No Player has Entered -->
-<!--
-	<GameObject file="game_objects/pong/wall.xml">
-		<Transform>
-			<Translation x="0.0" y="318.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="650.0" y="15.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/wall.xml">
-		<Transform>
-			<Translation x="0.0" y="-318.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="650.0" y="15.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/wall.xml">
-		<Transform>
-			<Translation x="318.0" y="0.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="15.0" y="650.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/wall.xml">
-		<Transform>
-			<Translation x="-318.0" y="0.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="15.0" y="650.0" z="1.0"/>
-		</Transform>
-	</GameObject>
--->
-<!-- Enter Black -->
-
 	<GameObject file="game_objects/pong/goal_sensor.xml">
 		<Transform>
 			<Translation x="0.0" y="992.5" z="0.0"/>
@@ -52,55 +17,6 @@
 			<Scale x="680.0" y="15.0" z="1.0"/>
 		</Transform>
 	</GameObject>
-
-	<GameObject file="game_objects/pong/wall.xml">
-		<Transform>
-			<Translation x="333.0" y="666.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="15.0" y="680.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/wall.xml">
-		<Transform>
-			<Translation x="-333.0" y="666.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="15.0" y="680.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/paddle_guard.xml">
-		<Transform>
-			<Translation x="0.0" y="318.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="1000.0" y="1.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/box_paddle_black.xml" tag="player" send="true">
-		<Transform>
-			<Translation x="0.0" y="920.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="120.0" y="20.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/circle_paddle_black.xml" tag="player" send="true">
-		<Transform>
-			<Translation x="0.0" y="250.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="25.0" y="25.0" z="1.0"/>
-		</Transform>
-	</GameObject>
-
-	<GameObject file="game_objects/pong/score_keeper_black.xml">
-		<Transform>
-			<Translation x="-395.0" y="395.0" z="0.0"/>
-			<Rotation x="0.0" y="0.0" z="0.0"/>
-			<Scale x="100.0" y="100.0" z="100.0"/>
-		</Transform>
-	</GameObject>
-<!-- -->
 
 <!-- Enter Blue -->
 
@@ -214,6 +130,57 @@
 	<GameObject file="game_objects/pong/score_keeper_green.xml">
 		<Transform>
 			<Translation x="395.0" y="395.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="100.0" y="100.0" z="100.0"/>
+		</Transform>
+	</GameObject>
+<!-- -->
+
+<!-- Enter Black -->
+
+	<GameObject file="game_objects/pong/wall.xml">
+		<Transform>
+			<Translation x="333.0" y="666.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="15.0" y="680.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/pong/wall.xml">
+		<Transform>
+			<Translation x="-333.0" y="666.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="15.0" y="680.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/pong/paddle_guard.xml">
+		<Transform>
+			<Translation x="0.0" y="318.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="1000.0" y="1.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/pong/box_paddle_black.xml" tag="player" send="true">
+		<Transform>
+			<Translation x="0.0" y="920.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="120.0" y="20.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/pong/circle_paddle_black.xml" tag="player" send="true">
+		<Transform>
+			<Translation x="0.0" y="250.0" z="0.0"/>
+			<Rotation x="0.0" y="0.0" z="0.0"/>
+			<Scale x="25.0" y="25.0" z="1.0"/>
+		</Transform>
+	</GameObject>
+
+	<GameObject file="game_objects/pong/score_keeper_black.xml">
+		<Transform>
+			<Translation x="-395.0" y="395.0" z="0.0"/>
 			<Rotation x="0.0" y="0.0" z="0.0"/>
 			<Scale x="100.0" y="100.0" z="100.0"/>
 		</Transform>

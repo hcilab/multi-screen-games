@@ -1,3 +1,4 @@
+//This is for the game Pong
 //======================================================================================================
 // Author: David Hanna
 //
@@ -49,7 +50,6 @@ void setup()
   size(500, 500, P3D);
   surface.setResizable(true);
   
-  frameRate(20);
   mainObject = this;
   eventManager = new EventManager();
   gravity = new Vec2(0.0, 10.0);
@@ -66,7 +66,6 @@ void setup()
   gameStateController = new GameStateController();
   
   spriteManager.loadAllSprites();
-  //modelManager.loadAllModels();
   gameStateController.pushState(new GameState_ChooseClientServerState());
   
   lastFrameTime = millis();
@@ -79,36 +78,6 @@ void draw()
   int currentFrameTime = millis();
   int deltaTime = currentFrameTime - lastFrameTime;
   lastFrameTime = currentFrameTime;
-  
-  //if (deltaTime > 100)
-  //{
-  //  deltaTime = 32;
-  //}
-  //println(deltaTime);
-  
-  //println(((com.jogamp.newt.opengl.GLWindow)surface.getNative()).getLocationOnScreen(null));
-  //if (robot != null)
-  //{
-  //  if (focused)
-  //  {
-  //    if (cursorVisible)
-  //    {
-  //      noCursor();
-  //      cursorVisible = false;
-  //    }
-  //    robot.mouseMove(0, 0);
-  //  }
-  //  else
-  //  {
-  //    if (!cursorVisible)
-  //    {
-  //      cursor(ARROW);
-  //      cursorVisible = true;
-  //    }
-  //  }
-  //}
-  //println(MouseInfo.getPointerInfo().getLocation());
-  
   gameStateController.update(deltaTime);
   eventManager.update();
 }
@@ -122,7 +91,7 @@ void exit()
   super.exit();
 }
 
-void keyPressed()
+void keyPressed() //Keyboard buttons to move box paddle
 {
   Event event;
   
@@ -152,7 +121,7 @@ void keyPressed()
   }
   else
   {
-    switch (key)
+    switch (key) //Keyboard buttons to move circle paddle
     {
       case 'w':
         event = new Event(EventType.W_BUTTON_PRESSED);
@@ -177,7 +146,7 @@ void keyPressed()
   }
 }
 
-void keyReleased()
+void keyReleased() //Key release very important!
 {
   Event event;
   
@@ -232,6 +201,7 @@ void keyReleased()
   }
 }
 
+//ContactListener to listen to collisions!
 class PhysicsContactListener implements ContactListener
 {
   @Override public void beginContact(Contact contact)

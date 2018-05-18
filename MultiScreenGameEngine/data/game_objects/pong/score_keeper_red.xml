@@ -4,7 +4,7 @@
 		clientID="4" 
 		scoreFullSpriteName="score_full"
 		r="255.0" g="0.0" b="0.0"/>
-
+		<!--Displays Red player's scores-->
 	<Render>
 		<Sprite name="score_empty">
 			<Translation x="-30.0" y="30.0" z="0.0"/>

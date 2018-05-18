@@ -1,5 +1,6 @@
 <Level>
-	<GameObject file="game_objects/pong/camera_full.xml"/>
+	<!--Displays the level for Red-->
+	<GameObject file="game_objects/pong/camera_red.xml"/>
 	<GameObject file="game_objects/pong/client_paddle_controller.xml"/>
 
 	<GameObject file="game_objects/pong/wall.xml">

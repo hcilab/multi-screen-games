@@ -8,25 +8,25 @@
 // INTERFACE
 //------------------------------------------------------------------------------------------------------
 
-public enum ActionType
+public enum ActionType 
 {
-  // TranslateOverTimeComponent
+  //TranslateOverTimeComponent
   TRANSLATE,
   SET_MOVING_LEFT,
   SET_MOVING_DOWN,
   SET_MOVING_FORWARD,
   
-  // RotateOverTimeComponent
+  //RotateOverTimeComponent
   ROTATE,
   
-  // ScaleOverTimeComponent
+  //ScaleOverTimeComponent
   SCALE,
   SET_X_SCALING_UP,
   SET_Y_SCALING_UP,
   SET_Z_SCALING_UP,
 }
 
-public interface IAction
+public interface IAction 
 {
   public int getTimeStamp();
   public ActionType getActionType();
@@ -34,12 +34,13 @@ public interface IAction
   public void apply();
   
   public JSONObject serialize();
-  public void deserialize(JSONObject jsonAction);
+  public void deserialize(JSONObject jsonAction); 
 }
 
 //------------------------------------------------------------------------------------------------------
 // IMPLEMENTATION
 //------------------------------------------------------------------------------------------------------
+
 
 public String actionTypeEnumToString(ActionType actionType)
 {
@@ -78,6 +79,7 @@ public String actionTypeEnumToString(ActionType actionType)
       return null;
   }
 }
+
 
 public ActionType actionTypeStringToEnum(String actionType)
 {

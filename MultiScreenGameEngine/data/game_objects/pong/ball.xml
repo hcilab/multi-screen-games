@@ -1,27 +1,31 @@
 <GameObject>
-	<Render>
-		<Sprite name="ball">
+	<!--Renders the ball sprite.-->
+	<Render> 
+		<Sprite name="ball"> <!--The first sprite is used for the ball-->
 			<Translation x="0.0" y="0.0" z="0.0"/>
 			<Rotation x="0.0" y="0.0" z="0.0"/>
 			<Scale x="1.0" y="1.0" z="1.0"/>
 			<Tint r="255.0" g="255.0" b="255.0" a="255.0"/>
 		</Sprite>
-		<Sprite name="ball">
+		<Sprite name="ball"> <!--The second sprite is used for the circle paddle-->
 			<Translation x="0.0" y="0.0" z="0.0"/>
 			<Rotation x="0.0" y="0.0" z="0.0"/>
 			<Scale x="0.65" y="0.65" z="0.65"/>
 			<Tint r="255.0" g="255.0" b="255.0" a="255.0"/>
 		</Sprite>
 	</Render>
-
-	<BallController 
-		speed="650.0"
-		clientIDParameterName="clientID"
+	<!--End--> 
+	
+	<!--Controls ball speed, defines client number and color-->
+	<BallController
+		speed="650.0" 
+		clientIDParameterName="clientID" 
 		rParameterName="r"
 		gParameterName="g"
 		bParameterName="b"
-	/>
+	/><!--End--> 
 
+	<!--A RigidBody is a chunk of matter so strong that the distance between any two bits of matter on the chunk is constant.-->
 	<RigidBody
 		active="true"
 		allowSleep="false"
@@ -32,7 +36,9 @@
 		linearDamping="0.0"
 		angularDamping="0.0"
 		type="dynamic"
-	>
+	><!--End-->
+
+		<!--Fixtures puts a shape into the collision system-->
 		<Fixture 
 			density="0.000000001" 
 			friction="0.0" 
@@ -43,7 +49,8 @@
 		>
 			<Shape type="circle" radius="0.5" x="0.0" y="0.0"/>
 		</Fixture>
-
+		
+		<!--What happens when the ball collides with a player-->
 		<OnCollideEvents>
 			<Event
 				collidedWith="player" 
@@ -52,7 +59,7 @@
 				rParameterName="r"
 				gParameterName="g"
 				bParameterName="b"
-			/>
+			/><!--End-->
 		</OnCollideEvents>
 	</RigidBody>
 </GameObject>

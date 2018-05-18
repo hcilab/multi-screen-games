@@ -622,23 +622,7 @@ public class RigidBodyComponent extends Component
               onCollideEvent.eventParameters.put("gParameterName", xmlOnCollideEvent.getString("gParameterName"));
               onCollideEvent.eventParameters.put("bParameterName", xmlOnCollideEvent.getString("bParameterName"));
             }
-            //else if (stringEventType.equals("GAME_OVER"))
-            //{
-            //  onCollideEvent.eventType = EventType.GAME_OVER;
-            //}
-            //else if (stringEventType.equals("DESTROY_COIN"))
-            //{
-            //  onCollideEvent.eventType = EventType.DESTROY_COIN;
-            //  onCollideEvent.eventParameters = new HashMap<String, String>();
-            //  onCollideEvent.eventParameters.put("coinParameterName", xmlOnCollideEvent.getString("coinParameterName"));
-            //}
-            //else if (stringEventType.equals("PLAYER_PLATFORM_COLLISION"))
-            //{
-            //  onCollideEvent.eventType = EventType.PLAYER_PLATFORM_COLLISION;
-            //  onCollideEvent.eventParameters = new HashMap<String, String>();
-            //  onCollideEvent.eventParameters.put("platformParameterName", xmlOnCollideEvent.getString("platformParameterName"));
-            //}
-            
+                       
             onCollideEvents.add(onCollideEvent); 
           }  
         }  
@@ -688,23 +672,6 @@ public class RigidBodyComponent extends Component
           
           eventManager.queueEvent(event);
         }
-        //else if (onCollideEvent.eventType == EventType.GAME_OVER)  
-        //{  
-        //  eventManager.queueEvent(new Event(EventType.GAME_OVER));  
-        //}  
-        //else if (onCollideEvent.eventType == EventType.DESTROY_COIN)  
-        //{   
-        //  Event event = new Event(EventType.DESTROY_COIN);  
-        //  event.addGameObjectParameter(onCollideEvent.eventParameters.get("coinParameterName"), collider);  
-        //  eventManager.queueEvent(event);  
-  
-        //} 
-        //else if (onCollideEvent.eventType == EventType.PLAYER_PLATFORM_COLLISION) 
-        //{  
-        //  Event event = new Event(EventType.PLAYER_PLATFORM_COLLISION);  
-        //  event.addGameObjectParameter(onCollideEvent.eventParameters.get("platformParameterName"), collider);  
-        //  eventManager.queueEvent(event);  
-        //}  
       }  
     } 
   }
@@ -1098,8 +1065,6 @@ public class TranslateOverTimeComponent extends NetworkComponent
     SetMovingLeftAction setMovingLeftAction = new SetMovingLeftAction();
     setMovingLeftAction.setTargetUID(gameObject.getUID());
     setMovingLeftAction.setMovingLeft(movingLeft);
-    
-    //actionBuffer.add(setMovingLeftAction);
   }
   
   private void addSetMovingDownAction()
@@ -1107,8 +1072,6 @@ public class TranslateOverTimeComponent extends NetworkComponent
     SetMovingDownAction setMovingDownAction = new SetMovingDownAction();
     setMovingDownAction.setTargetUID(gameObject.getUID());
     setMovingDownAction.setMovingDown(movingDown);
-    
-    //actionBuffer.add(setMovingDownAction);
   }
   
   private void addSetMovingForwardAction()
@@ -1116,8 +1079,6 @@ public class TranslateOverTimeComponent extends NetworkComponent
     SetMovingForwardAction setMovingForwardAction = new SetMovingForwardAction();
     setMovingForwardAction.setTargetUID(gameObject.getUID());
     setMovingForwardAction.setMovingForward(movingForward);
-    
-    //actionBuffer.add(setMovingForwardAction);
   }
   
   private void addTranslateAction(PVector translation)
@@ -1125,8 +1086,6 @@ public class TranslateOverTimeComponent extends NetworkComponent
     TranslateAction translateAction = new TranslateAction();
     translateAction.setTargetUID(gameObject.getUID());
     translateAction.setTranslation(translation);
-    
-    //actionBuffer.add(translateAction);
   }
   
   @Override public String toString()
@@ -1408,8 +1367,6 @@ public class ScaleOverTimeComponent extends NetworkComponent
     SetXScalingUpAction setXScalingUpAction = new SetXScalingUpAction();
     setXScalingUpAction.setTargetUID(gameObject.getUID());
     setXScalingUpAction.setXScalingUp(xScalingUp);
-    
-    //actionBuffer.add(setXScalingUpAction);
   }
   
   private void addSetYScalingUpAction()
@@ -1417,8 +1374,6 @@ public class ScaleOverTimeComponent extends NetworkComponent
     SetYScalingUpAction setYScalingUpAction = new SetYScalingUpAction();
     setYScalingUpAction.setTargetUID(gameObject.getUID());
     setYScalingUpAction.setYScalingUp(yScalingUp);
-    
-    //actionBuffer.add(setYScalingUpAction);
   }
   
   private void addSetZScalingUpAction()
@@ -1426,8 +1381,6 @@ public class ScaleOverTimeComponent extends NetworkComponent
     SetZScalingUpAction setZScalingUpAction = new SetZScalingUpAction();
     setZScalingUpAction.setTargetUID(gameObject.getUID());
     setZScalingUpAction.setZScalingUp(zScalingUp);
-    
-    //actionBuffer.add(setZScalingUpAction);
   }
   
   private void addScaleAction(PVector scale)
@@ -1435,8 +1388,6 @@ public class ScaleOverTimeComponent extends NetworkComponent
     ScaleAction scaleAction = new ScaleAction();
     scaleAction.setTargetUID(gameObject.getUID());
     scaleAction.setScale(scale);
-    
-    //actionBuffer.add(scaleAction);
   }
   
   @Override public String toString()
@@ -1750,12 +1701,14 @@ public class BallControllerComponent extends Component
 {
   private float speed;
   private int currentClientID;
-  private boolean resetNextFrame;
+  public boolean resetNextFrame;
   
   private String clientIDParameterName;
   private String rParameterName;
   private String gParameterName;
   private String bParameterName;
+  
+  private PVector currentColor; // Used to track the ball color
   
   public BallControllerComponent(IGameObject _gameObject)
   {
@@ -1814,6 +1767,7 @@ public class BallControllerComponent extends Component
           event.getRequiredFloatParameter(bParameterName)
         );
         spriteInstance.setTint(tint);
+        currentColor = tint;
       }
     }
     
@@ -1828,7 +1782,13 @@ public class BallControllerComponent extends Component
     return currentClientID;
   }
   
-  private void reset()
+  
+  public PVector GetCurrentColor() //Gets current color of ball
+  {
+    return currentColor;
+  }
+  
+  public void reset()
   {
     IComponent component = gameObject.getComponent(ComponentType.RIGID_BODY);
     if (component != null)
@@ -1889,9 +1849,29 @@ public class GoalListenerComponent extends Component
     {
       IGameObject ball = event.getRequiredGameObjectParameter(ballParameterName);
       IComponent component = ball.getComponent(ComponentType.BALL_CONTROLLER);
+     
       if (component != null)
       {
         BallControllerComponent ballControllerComponent = (BallControllerComponent)component;
+
+        // Checks ball color and compares it with ball velocity
+        IComponent cp = ballControllerComponent.gameObject.getComponent(ComponentType.RIGID_BODY);
+        if (cp != null)
+        {
+          RigidBodyComponent rb = (RigidBodyComponent)cp;
+          print(ballControllerComponent.GetCurrentColor());
+          print(rb.getLinearVelocity());
+          if(ballControllerComponent.GetCurrentColor().x > 0 && rb.getLinearVelocity().y < 0 // black
+            || ballControllerComponent.GetCurrentColor().y > 0 && rb.getLinearVelocity().x > 0 // green
+            || ballControllerComponent.GetCurrentColor().z > 0 && rb.getLinearVelocity().x < 0 // blue
+            || ballControllerComponent.GetCurrentColor().x == 0 && ballControllerComponent.GetCurrentColor().y == 0 && rb.getLinearVelocity().y > 0) // red
+          {
+            print("Should RESET GOAL INVALID");
+            ballControllerComponent.resetNextFrame = true;
+            return;
+          }
+        }
+        // End
         
         if (currentScore < 9 && ballControllerComponent.getCurrentClientID() == clientID)
         {
